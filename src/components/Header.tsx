@@ -1,8 +1,9 @@
 import React from 'react';
 import { UserProgress } from '../types/quiz';
-import { Flame, Bell, Moon, Sun, BarChart2, BookOpen, Settings, Sprout } from 'lucide-react';
+import { Flame, Bell, Moon, Sun, BarChart2, BookOpen, Settings, Sprout, Cloud } from 'lucide-react';
 import { requestNotificationPermission, sendStudyReminder } from '../utils/notification';
 import { AppTab } from './BottomNavBar';
+import { User } from 'firebase/auth';
 
 interface HeaderProps {
   progress: UserProgress;
@@ -11,6 +12,7 @@ interface HeaderProps {
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
   onNotifyToggle: () => void;
+  currentUser?: User | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,7 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   darkMode,
   setDarkMode,
-  onNotifyToggle
+  onNotifyToggle,
+  currentUser,
 }) => {
   const handleNotificationClick = async () => {
     const granted = await requestNotificationPermission();
@@ -128,8 +131,29 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          {/* ツールボタン群（通知 & ダークモード） */}
+          {/* ツールボタン群（クラウド同期 & 通知 & ダークモード） */}
           <div className="flex items-center gap-0.5 sm:gap-1">
+            {/* クラウド同期ステータス */}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`p-1.5 sm:p-2 rounded-lg transition-colors flex items-center gap-1 ${
+                currentUser
+                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+              title={currentUser ? `Google Cloud同期中 (${currentUser.displayName || currentUser.email})` : 'Google Cloud同期を設定'}
+            >
+              {currentUser?.photoURL ? (
+                <img 
+                  src={currentUser.photoURL} 
+                  alt="User" 
+                  className="w-5 h-5 rounded-full border border-emerald-500" 
+                />
+              ) : (
+                <Cloud className={`w-4 h-4 sm:w-5 sm:h-5 ${currentUser ? 'text-emerald-500' : ''}`} />
+              )}
+            </button>
+
             <button
               onClick={handleNotificationClick}
               className={`hidden sm:flex p-1.5 sm:p-2 rounded-lg transition-colors ${

@@ -5,6 +5,13 @@ import {
   loadProgress, recordAnswer, saveActiveSession, 
   clearActiveSession, toggleBookmark, saveProgress 
 } from './utils/storage';
+import { 
+  onAuthStatusChange, 
+  fetchProgressFromCloud, 
+  saveProgressToCloud, 
+  mergeUserProgress 
+} from './services/firebaseSync';
+import { User } from 'firebase/auth';
 import { Header } from './components/Header';
 import { HomeDashboard } from './components/HomeDashboard';
 import { QuizCard } from './components/QuizCard';
@@ -15,6 +22,7 @@ import { BottomNavBar, AppTab } from './components/BottomNavBar';
 
 export const App: React.FC = () => {
   const [progress, setProgress] = useState<UserProgress>(loadProgress());
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>('home');
   const [aiQuizContext, setAiQuizContext] = useState<QuizQuestion | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -25,6 +33,30 @@ export const App: React.FC = () => {
   const [currentSession, setCurrentSession] = useState<ResumeSession | null>(progress.activeSession);
   const [activeQuizList, setActiveQuizList] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+
+  // 認証リスナー＆初回クラウド同期
+  useEffect(() => {
+    const unsubscribe = onAuthStatusChange(async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        try {
+          const cloudProgress = await fetchProgressFromCloud(user.uid);
+          if (cloudProgress) {
+            const currentLocal = loadProgress();
+            const merged = mergeUserProgress(currentLocal, cloudProgress);
+            saveProgress(merged);
+            setProgress(merged);
+            await saveProgressToCloud(user.uid, merged);
+          } else {
+            await saveProgressToCloud(user.uid, loadProgress());
+          }
+        } catch (err) {
+          console.error('Initial cloud sync error:', err);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // ダークモードクラス適用
   useEffect(() => {
@@ -145,6 +177,13 @@ export const App: React.FC = () => {
     }
 
     setProgress(updatedProgress);
+
+    // ログイン中ならクラウドへ自動保存
+    if (currentUser) {
+      saveProgressToCloud(currentUser.uid, updatedProgress).catch(err => {
+        console.error('Background cloud save error:', err);
+      });
+    }
   };
 
   // 次の問題へ
@@ -214,6 +253,7 @@ export const App: React.FC = () => {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         onNotifyToggle={handleNotifyToggle}
+        currentUser={currentUser}
       />
 
       {/* メインコンテンツ */}
