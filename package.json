@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "deploy": "node scripts/deploy.js",
     "publish": "node scripts/sync_to_github.js",
     "generate-quizzes": "node scripts/generate_quizzes.mjs"
   },

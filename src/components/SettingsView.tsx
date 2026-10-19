@@ -9,7 +9,8 @@ import {
 import { requestNotificationPermission, sendStudyReminder } from '../utils/notification';
 import { 
   Moon, Sun, Bell, Key, Download, Upload, RotateCcw, 
-  ShieldCheck, ExternalLink, Check, Settings
+  ShieldCheck, ExternalLink, Check, Settings,
+  Sprout, Trees, Lock, Zap
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -182,12 +183,91 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Gemini APIキー設定（BYOK） */}
+      {/* 3. 🌱 Ecosia AIについて（おすすめの理由） */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-2 border-emerald-500/30 dark:border-emerald-500/20 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-lg shadow-md shadow-emerald-500/20 shrink-0">
+              <Sprout className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
+                  🌱 Ecosia AI をおすすめする理由
+                </h3>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                  推奨
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                本アプリでは、環境保護・手軽さ・高精度の観点からEcosia AIとの連携を最も推奨しています
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="https://www.ecosia.org/ai-chat"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="self-start sm:self-center px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-all"
+          >
+            <span>Ecosia AIを開く</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+
+        {/* 4つの素晴らしさポイント */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          
+          <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-emerald-200/60 dark:border-emerald-900/40 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+              <Zap className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>登録不要・APIキー完全不要</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              GoogleアカウントやAPIキーの取得といった面倒な初期設定は一切不要。タップ1つで即座にAI解説が受けられます。
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-emerald-200/60 dark:border-emerald-900/40 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+              <Trees className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>地球を再生するグリーンAI</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              収益の100%を気候変動対策・世界各地の植樹活動に還元。自社太陽光発電により消費電力の200%を発電するエコAIです。
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-emerald-200/60 dark:border-emerald-900/40 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+              <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>徹底したプライバシー保護</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              個人プロファイルの作成や広告主へのデータ転売を行わず、検索履歴も数日で完全に匿名化される高いプライバシー基準です。
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-emerald-200/60 dark:border-emerald-900/40 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+              <Sprout className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>最新時事ニュースの網羅性</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              リアルタイムWeb検索と連動しており、法改正や最新の政治・経済の動向、用語の対立軸も鮮度の高い情報で詳しく答えてくれます。
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 4. Gemini APIキー設定（BYOK / 上級者向け） */}
       <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Key className="w-4 h-4 text-violet-500" />
-            Gemini APIキー（AI質問用・完全秘匿）
+            Gemini API設定（画面内インライン対話用 / BYOK）
           </h3>
           <a
             href="https://aistudio.google.com/app/apikey"

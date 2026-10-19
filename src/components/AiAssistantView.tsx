@@ -4,8 +4,10 @@ import {
   getStoredApiKey, saveApiKey, removeApiKey, askGemini, ChatMessage 
 } from '../services/aiService';
 import { 
-  Sparkles, Key, Send, Trash2, ShieldCheck, ExternalLink, Bot, User, BookOpen, AlertCircle, RefreshCw 
+  Sparkles, Key, Send, Trash2, ShieldCheck, ExternalLink, Bot, User, BookOpen, AlertCircle, RefreshCw,
+  Sprout, CheckCircle2
 } from 'lucide-react';
+import { openEcosiaAiWithPrompt } from '../utils/ecosiaAi';
 
 interface AiAssistantViewProps {
   allQuizzes: QuizQuestion[];
@@ -34,7 +36,21 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
   const [inputQuery, setInputQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeQuizContext, setActiveQuizContext] = useState<QuizQuestion | null>(initialQuizContext || null);
+  const [ecosiaSearchText, setEcosiaSearchText] = useState<string>('');
+  const [ecosiaOpenedNotice, setEcosiaOpenedNotice] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleOpenEcosiaDirect = (queryText: string) => {
+    const q = queryText.trim();
+    if (!q) return;
+    const fullPrompt = `【ニュース検定・時事学習の質問】
+質問内容: ${q}
+
+上記のテーマについて、ニュース検定（1級・2級レベル）対策として知っておくべき法律・制度の背景や対立軸、最新の動向をわかりやすく丁寧に解説してください。`;
+    openEcosiaAiWithPrompt(fullPrompt);
+    setEcosiaOpenedNotice(true);
+    setTimeout(() => setEcosiaOpenedNotice(false), 5000);
+  };
 
   // 初期問題コンテキストが渡された場合の反映
   useEffect(() => {
@@ -170,37 +186,129 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
           {apiKey ? (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>APIキー設定済み</span>
+              <span>Gemini連携中</span>
               <button 
                 onClick={() => setIsKeyEditing(!isKeyEditing)}
                 className="ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline"
               >
-                {isKeyEditing ? '閉じる' : '変更'}
+                {isKeyEditing ? '閉じる' : '設定'}
               </button>
             </div>
           ) : (
             <button
-              onClick={() => setIsKeyEditing(true)}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/20 transition-all"
+              onClick={() => setIsKeyEditing(!isKeyEditing)}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all"
             >
-              <Key className="w-4 h-4" />
-              APIキーを設定する
+              <Key className="w-3.5 h-3.5" />
+              Gemini API設定 (任意)
             </button>
           )}
         </div>
       </div>
 
-      {/* APIキー編集パネル */}
+      {/* 🌱 【メイン】Ecosia AI 即時質問カード（登録・API不要） */}
+      <div className="p-6 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-2 border-emerald-500/30 dark:border-emerald-500/20 shadow-md space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-xl shadow-md shadow-emerald-500/20">
+              <Sprout className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-black text-slate-900 dark:text-slate-100 text-base">
+                  🌱 Ecosia AI に質問する
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                  登録・API不要！完全無料
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                質問がすでに入力された状態でEcosia AIが開きます。地球の植樹と再エネ100%で動くエシカルAIです。
+              </p>
+            </div>
+          </div>
+          <a
+            href="https://www.ecosia.org/ai-chat"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="self-start sm:self-center text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+          >
+            Ecosia公式を開く <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+
+        {/* 自由質問入力フォーム */}
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleOpenEcosiaDirect(ecosiaSearchText);
+          }}
+          className="flex flex-col sm:flex-row items-stretch gap-2"
+        >
+          <input
+            type="text"
+            value={ecosiaSearchText}
+            onChange={(e) => setEcosiaSearchText(e.target.value)}
+            placeholder="知りたい時事用語・政策・疑問を入力（例: 2026年コメ安の要因、第7次エネルギー基本計画...）"
+            className="flex-1 px-4 py-3 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={!ecosiaSearchText.trim()}
+            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-40 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all shrink-0"
+          >
+            <Sprout className="w-4 h-4" />
+            <span>Ecosia AIで開く</span>
+            <ExternalLink className="w-3.5 h-3.5 text-emerald-200" />
+          </button>
+        </form>
+
+        {/* Ecosia開いた通知 */}
+        {ecosiaOpenedNotice && (
+          <div className="p-3 rounded-xl bg-emerald-100/80 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100 text-xs flex items-center gap-2 animate-fadeIn">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>プロンプトを自動入力してEcosia AIを開きました！（クリップボードにもコピー済みです）</span>
+          </div>
+        )}
+
+        {/* おすすめ質問クイックタグ */}
+        <div className="pt-1">
+          <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-2">
+            👇 ワンタップで質問できる注目の頻出時事テーマ（タップですぐにEcosia AIが開きます）：
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: '🌾 2026年コメ安・農業政策の転換', q: '2024年のコメ高騰から一転した2026年のコメ安の背景、生産調整や農家の収益構造の課題について' },
+              { label: '⚡ 第7次エネルギー基本計画と原発', q: '第7次エネルギー基本計画で「原発低減」文言が削除された経緯と脱炭素電源の位置付けについて' },
+              { label: '🗳️ 参院選の1票の格差・合区問題', q: '参議院選挙の「1票の格差」をめぐる最高裁違憲状態判決の流れと「合区」解消の議論について' },
+              { label: '🛡️ 経済安全保障推進法の主要4本柱', q: '経済安全保障推進法（基幹インフラ、特定重要物資、先端技術官民協力、特許非公開）のポイントについて' },
+              { label: '📈 日銀の追加利上げと為替・物価動向', q: '日本銀行のマイナス金利解除後の追加利上げ方針と、円安・インフレへの影響について' },
+            ].map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleOpenEcosiaDirect(item.q)}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/60 hover:border-emerald-500 dark:hover:border-emerald-400 text-slate-700 dark:text-slate-200 text-xs font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <span>{item.label}</span>
+                <ExternalLink className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* APIキー編集パネル（Gemini） */}
       {isKeyEditing && (
         <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 animate-slideDown">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Key className="w-4 h-4 text-indigo-500" />
-                Gemini APIキーの設定（BYOK: 運営者完全不可視）
+                Gemini APIキーの設定（画面内インライン対話用 / BYOK）
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                入力したAPIキーはお使いのブラウザ（LocalStorage）にのみ安全に保存され、本サイトのサーバーや管理者には**一切送信されず完全に見えません**。通信はGoogle公式エンドポイントへ直接行われます。
+                ※ Ecosia AIをご利用の場合はAPIキーは不要です。アプリ画面内で直接チャット対話を行いたい場合のみ設定してください。キーはお使いのブラウザ内部にのみ保存されます。
               </p>
             </div>
             <a

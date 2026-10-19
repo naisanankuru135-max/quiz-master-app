@@ -3,8 +3,10 @@ import { QuizQuestion } from '../types/quiz';
 import confetti from 'canvas-confetti';
 import { 
   Bookmark, BookmarkCheck, 
-  ArrowRight, ArrowLeft, Sparkles, HelpCircle, Save, Bot 
+  ArrowRight, ArrowLeft, Sparkles, HelpCircle, Save, Bot,
+  Sprout, ExternalLink, CheckCircle2
 } from 'lucide-react';
+import { formatQuizPromptForEcosia, openEcosiaAiWithPrompt } from '../utils/ecosiaAi';
 
 interface QuizCardProps {
   quiz: QuizQuestion;
@@ -37,6 +39,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
   const [isSubmitted, setIsSubmitted] = useState<boolean>(!!previousAnswer);
   const [showExplanation, setShowExplanation] = useState<boolean>(!!previousAnswer);
   const [animationClass, setAnimationClass] = useState<string>('');
+  const [ecosiaNotice, setEcosiaNotice] = useState<boolean>(false);
 
   // 問題が切り替わったら初期化
   useEffect(() => {
@@ -44,7 +47,15 @@ export const QuizCard: React.FC<QuizCardProps> = ({
     setIsSubmitted(!!previousAnswer);
     setShowExplanation(!!previousAnswer);
     setAnimationClass('');
+    setEcosiaNotice(false);
   }, [quiz.id, previousAnswer]);
+
+  const handleOpenEcosia = () => {
+    const prompt = formatQuizPromptForEcosia(quiz, selected);
+    openEcosiaAiWithPrompt(prompt);
+    setEcosiaNotice(true);
+    setTimeout(() => setEcosiaNotice(false), 5000);
+  };
 
   const handleToggleOption = (key: 'A' | 'B' | 'C' | 'D') => {
     if (isSubmitted) return;
@@ -315,16 +326,58 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                   ))}
                 </div>
 
-                {/* AIチューターに質問するボタン */}
-                <div className="pt-2">
+                {/* AI解説連携エリア */}
+                <div className="pt-2 space-y-2">
+                  {/* メイン: Ecosia AI（登録不要・API不要） */}
                   <button
                     type="button"
-                    onClick={() => onAskAi?.(quiz)}
-                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 transition-all hover:-translate-y-0.5"
+                    onClick={handleOpenEcosia}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-bold flex items-center justify-between shadow-md shadow-emerald-600/20 transition-all hover:-translate-y-0.5 group"
                   >
-                    <Bot className="w-4 h-4" />
-                    <span>💡 この問題の背景や疑問をAIに質問する</span>
+                    <div className="flex items-center gap-2.5 text-left">
+                      <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                        <Sprout className="w-5 h-5 text-emerald-100" />
+                      </div>
+                      <div>
+                        <div className="text-xs sm:text-sm font-black flex items-center gap-1.5">
+                          <span>🌱 Ecosia AIでこの問題を深掘り解説</span>
+                          <span className="text-[10px] px-1.5 py-0.2 bg-emerald-400/30 border border-emerald-300/40 rounded text-emerald-100 font-normal">
+                            登録・API不要
+                          </span>
+                        </div>
+                        <p className="text-[10px] sm:text-[11px] text-emerald-100/90 font-normal">
+                          問題・選択肢・解説を入力済みの状態でEcosia AIを即座に開きます
+                        </p>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-emerald-200 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </button>
+
+                  {/* Ecosia起動通知フィードバック */}
+                  {ecosiaNotice && (
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-2 animate-fadeIn">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div className="flex-1">
+                        <strong>Ecosia AIを開きました！</strong>
+                        <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                          プロンプトは自動入力されています（念のためクリップボードにもコピー済みです）。
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* サブ: Gemini API（BYOK / 画面内インライン質問） */}
+                  <div className="flex items-center justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => onAskAi?.(quiz)}
+                      className="text-[11px] text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+                      title="APIキーを設定してこの画面内でAIと対話する"
+                    >
+                      <Bot className="w-3.5 h-3.5" />
+                      <span>Gemini APIでインライン質問する（要キー）</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
