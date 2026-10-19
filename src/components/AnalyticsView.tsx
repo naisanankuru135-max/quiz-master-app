@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserProgress, QuizQuestion } from '../types/quiz';
-import { Award, TrendingUp, BarChart3, Database, ShieldCheck, Zap } from 'lucide-react';
+import { Award, TrendingUp, BarChart3 } from 'lucide-react';
 
 interface AnalyticsViewProps {
   progress: UserProgress;
@@ -276,34 +276,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
         </div>
       </div>
 
-      {/* クラウド同期・ログイン（拡張インターフェース） */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 flex items-center justify-center pointer-events-none">
-          <Database className="w-48 h-48" />
-        </div>
 
-        <div className="relative z-10 max-w-xl space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-400/30">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            クラウド同期（オプション）
-          </div>
-          <h3 className="text-xl font-bold">Google Cloud / Firebase 同期機能</h3>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            現在はブラウザのLocalStorageで高速・プライベートに学習履歴を保持しています。
-            複数端末（スマホ・PC）間で学習進捗やストリークを共有したい場合は、自己責任でFirebase等の接続設定を行うことができます。
-          </p>
-
-          <div className="pt-2">
-            <button
-              onClick={() => alert('Firebase Auth / Firestore 連携設定は config/firebase.ts でプロジェクトIDを指定することで有効化できます。現在は安全な完全ローカル保存で動作しています。')}
-              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold transition-colors flex items-center gap-2"
-            >
-              <Zap className="w-4 h-4 text-amber-400" />
-              クラウド同期設定（準備完了）
-            </button>
-          </div>
-        </div>
-      </div>
 
     </div>
   );

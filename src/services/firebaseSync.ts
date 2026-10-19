@@ -19,6 +19,8 @@ import {
 } from 'firebase/firestore';
 import { UserProgress } from '../types/quiz';
 
+import { DEFAULT_FIREBASE_CONFIG } from '../config/firebaseConfig';
+
 export interface FirebaseConfig {
   apiKey: string;
   authDomain: string;
@@ -31,17 +33,16 @@ export interface FirebaseConfig {
 const CONFIG_STORAGE_KEY = 'quiz_firebase_config_v1';
 
 /**
- * 保存されたFirebase設定を取得
+ * 保存されたFirebase設定を取得（デフォルト設定があれば自動フォールバック）
  */
 export const getStoredFirebaseConfig = (): FirebaseConfig | null => {
   try {
     const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    if (raw) return JSON.parse(raw);
   } catch (e) {
     console.error('Failed to parse stored firebase config:', e);
-    return null;
   }
+  return DEFAULT_FIREBASE_CONFIG;
 };
 
 /**
