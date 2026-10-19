@@ -9,7 +9,8 @@ import {
   onAuthStatusChange, 
   fetchProgressFromCloud, 
   saveProgressToCloud, 
-  mergeUserProgress 
+  mergeUserProgress,
+  subscribeToCloudProgress 
 } from './services/firebaseSync';
 import { User } from 'firebase/auth';
 import { Header } from './components/Header';
@@ -34,28 +35,50 @@ export const App: React.FC = () => {
   const [activeQuizList, setActiveQuizList] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
 
-  // 認証リスナー＆初回クラウド同期
+  // 認証リスナー＆リアルタイムクラウド同期
   useEffect(() => {
-    const unsubscribe = onAuthStatusChange(async (user) => {
+    let unsubscribeSnapshot: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStatusChange(async (user) => {
       setCurrentUser(user);
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
       if (user) {
         try {
+          // 初回フェッチ & マージ
           const cloudProgress = await fetchProgressFromCloud(user.uid);
           if (cloudProgress) {
             const currentLocal = loadProgress();
             const merged = mergeUserProgress(currentLocal, cloudProgress);
             saveProgress(merged);
             setProgress(merged);
+            setCurrentSession(merged.activeSession);
             await saveProgressToCloud(user.uid, merged);
           } else {
             await saveProgressToCloud(user.uid, loadProgress());
           }
+
+          // リアルタイムリスナー開始（別端末での中断・進捗の更新を即時キャッチ）
+          unsubscribeSnapshot = subscribeToCloudProgress(user.uid, (cloudProgress) => {
+            const currentLocal = loadProgress();
+            const merged = mergeUserProgress(currentLocal, cloudProgress);
+            saveProgress(merged);
+            setProgress(merged);
+            setCurrentSession(merged.activeSession);
+          });
         } catch (err) {
           console.error('Initial cloud sync error:', err);
         }
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
   }, []);
 
   // ダークモードクラス適用
@@ -115,10 +138,16 @@ export const App: React.FC = () => {
       timestamp: new Date().toISOString(),
     };
 
-    saveActiveSession(newSession);
+    const updated = saveActiveSession(newSession);
     setCurrentSession(newSession);
     setActiveQuizList(targetQuizzes);
     setCurrentIndex(0);
+    setProgress(updated);
+    if (currentUser) {
+      saveProgressToCloud(currentUser.uid, updated).catch(err => {
+        console.error('Session start cloud save error:', err);
+      });
+    }
     setActiveTab('quiz');
   };
 
@@ -131,8 +160,14 @@ export const App: React.FC = () => {
       .filter((q): q is QuizQuestion => !!q);
 
     if (quizzes.length === 0) {
-      clearActiveSession();
-      setProgress(loadProgress());
+      const updated = clearActiveSession();
+      setCurrentSession(null);
+      setProgress(updated);
+      if (currentUser) {
+        saveProgressToCloud(currentUser.uid, updated).catch(err => {
+          console.error('Session clear cloud save error:', err);
+        });
+      }
       return;
     }
 
@@ -144,9 +179,14 @@ export const App: React.FC = () => {
 
   // 中断セッションの破棄
   const handleDiscardSession = () => {
-    clearActiveSession();
+    const updated = clearActiveSession();
     setCurrentSession(null);
-    setProgress(loadProgress());
+    setProgress(updated);
+    if (currentUser) {
+      saveProgressToCloud(currentUser.uid, updated).catch(err => {
+        console.error('Session discard cloud save error:', err);
+      });
+    }
   };
 
   // 解答提出
@@ -196,15 +236,26 @@ export const App: React.FC = () => {
           ...currentSession,
           currentIndex: nextIdx,
         };
-        saveActiveSession(nextSession);
+        const updated = saveActiveSession(nextSession);
         setCurrentSession(nextSession);
+        setProgress(updated);
+        if (currentUser) {
+          saveProgressToCloud(currentUser.uid, updated).catch(err => {
+            console.error('Next quiz cloud save error:', err);
+          });
+        }
       }
     } else {
       // 終了
       alert('セッションが完了しました！成績を確認しましょう。');
-      clearActiveSession();
+      const updated = clearActiveSession();
       setCurrentSession(null);
-      setProgress(loadProgress());
+      setProgress(updated);
+      if (currentUser) {
+        saveProgressToCloud(currentUser.uid, updated).catch(err => {
+          console.error('Session complete cloud save error:', err);
+        });
+      }
       setActiveTab('analytics');
     }
   };
@@ -216,15 +267,24 @@ export const App: React.FC = () => {
     }
   };
 
-  // 中断してホームに戻る
+  // 中断してホームに戻る（保存して中断）
   const handleQuitQuiz = () => {
+    let updated = loadProgress();
     if (currentSession) {
-      saveActiveSession({
+      const nextSession: ResumeSession = {
         ...currentSession,
         currentIndex,
+        timestamp: new Date().toISOString(),
+      };
+      updated = saveActiveSession(nextSession);
+      setCurrentSession(nextSession);
+    }
+    setProgress(updated);
+    if (currentUser) {
+      saveProgressToCloud(currentUser.uid, updated).catch(err => {
+        console.error('Quit quiz cloud save error:', err);
       });
     }
-    setProgress(loadProgress());
     setActiveTab('home');
   };
 

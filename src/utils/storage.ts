@@ -121,16 +121,20 @@ export function recordAnswer(
   return progress;
 }
 
-export function saveActiveSession(session: ResumeSession): void {
+export function saveActiveSession(session: ResumeSession): UserProgress {
   const progress = loadProgress();
   progress.activeSession = session;
+  progress.sessionUpdatedAt = new Date().toISOString();
   saveProgress(progress);
+  return progress;
 }
 
-export function clearActiveSession(): void {
+export function clearActiveSession(): UserProgress {
   const progress = loadProgress();
   progress.activeSession = null;
+  progress.sessionUpdatedAt = new Date().toISOString();
   saveProgress(progress);
+  return progress;
 }
 
 export function toggleBookmark(quizId: string): boolean {

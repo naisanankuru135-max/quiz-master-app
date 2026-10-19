@@ -57,6 +57,7 @@ export interface UserProgress {
   dailyGoal: number; // default 30
   activityHistory: DayActivity[];
   activeSession: ResumeSession | null;
+  sessionUpdatedAt?: string; // セッションの開始/更新/破棄日時（端末間同期用）
   notificationTime: string; // e.g. "20:00"
   notificationEnabled: boolean;
 }

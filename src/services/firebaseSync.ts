@@ -15,8 +15,10 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  onSnapshot,
   Firestore, 
-  serverTimestamp 
+  serverTimestamp,
+  Unsubscribe
 } from 'firebase/firestore';
 import { UserProgress } from '../types/quiz';
 
@@ -186,6 +188,27 @@ export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): Use
     .map(([date, data]) => ({ date, ...data }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  // 5. 中断セッション（activeSession）のマージ
+  // sessionUpdatedAt または activeSession.timestamp を比較して、より最新のセッション状態を採用
+  let mergedActiveSession = local.activeSession;
+  const localTime = new Date(local.sessionUpdatedAt || local.activeSession?.timestamp || 0).getTime();
+  const cloudTime = new Date(cloud.sessionUpdatedAt || cloud.activeSession?.timestamp || 0).getTime();
+
+  if (cloudTime > localTime) {
+    // クラウド側がより新しい場合（別端末で更新・完了・破棄された）
+    mergedActiveSession = cloud.activeSession;
+  } else if (localTime > cloudTime) {
+    // ローカル側がより新しい場合
+    mergedActiveSession = local.activeSession;
+  } else {
+    // 同時刻または不明な場合は、存在する方を採用
+    mergedActiveSession = local.activeSession || cloud.activeSession || null;
+  }
+
+  const mergedSessionUpdatedAt = cloudTime > localTime 
+    ? cloud.sessionUpdatedAt 
+    : (local.sessionUpdatedAt || cloud.sessionUpdatedAt);
+
   return {
     history: mergedHistory,
     bookmarks: mergedBookmarks,
@@ -197,7 +220,8 @@ export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): Use
     activityHistory: mergedActivityHistory,
     notificationTime: local.notificationTime || cloud.notificationTime || '20:00',
     notificationEnabled: local.notificationEnabled ?? cloud.notificationEnabled ?? false,
-    activeSession: local.activeSession || cloud.activeSession || null,
+    activeSession: mergedActiveSession,
+    sessionUpdatedAt: mergedSessionUpdatedAt,
   };
 };
 
@@ -209,8 +233,10 @@ export const saveProgressToCloud = async (userId: string, progress: UserProgress
   if (!db) return;
 
   const userDocRef = doc(db, 'quiz_users', userId);
+  // undefined値を除去して安全にシリアライズ
+  const sanitized = JSON.parse(JSON.stringify(progress));
   await setDoc(userDocRef, {
-    progress,
+    progress: sanitized,
     updatedAt: serverTimestamp(),
   }, { merge: true });
 };
@@ -228,4 +254,27 @@ export const fetchProgressFromCloud = async (userId: string): Promise<UserProgre
 
   const data = snapshot.data();
   return (data?.progress as UserProgress) || null;
+};
+
+/**
+ * クラウド（Firestore）の変更をリアルタイム購読（別端末での中断・進捗更新を即座に反映）
+ */
+export const subscribeToCloudProgress = (
+  userId: string,
+  onUpdate: (cloudProgress: UserProgress) => void
+): Unsubscribe => {
+  const { db } = getFirebaseServices();
+  if (!db) return () => {};
+
+  const userDocRef = doc(db, 'quiz_users', userId);
+  return onSnapshot(userDocRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data?.progress) {
+        onUpdate(data.progress as UserProgress);
+      }
+    }
+  }, (err) => {
+    console.warn('Realtime progress subscription error:', err);
+  });
 };
