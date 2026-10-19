@@ -22,9 +22,16 @@ export const formatQuizPromptForEcosia = (
     .map(k => `  - 選択肢${k}: ${quiz.explanations.details[k]}`)
     .join('\n');
 
-  const userSelectionStr = userSelected && userSelected.length > 0
-    ? `■ 受験者の選択: 【 ${userSelected.join(', ')} 】\n`
+  // 回答者の選択記号を押した順ではなくアルファベット順（A, B, C, D）にソート
+  const sortedSelected = userSelected && userSelected.length > 0
+    ? [...userSelected].sort()
+    : [];
+
+  const userSelectionStr = sortedSelected.length > 0
+    ? `■ 受験者の選択: 【 ${sortedSelected.join(', ')} 】\n`
     : '';
+
+  const sortedCorrect = [...quiz.correctAnswers].sort();
 
   return `【ニュース検定・時事問題の学習相談】
 以下のクイズについて、理解を深めるための詳しい解説をお願いします。
@@ -36,9 +43,8 @@ ${quiz.question}
 ■ 選択肢:
 ${optionsText}
 
-■ 正解: 【 ${quiz.correctAnswers.join(', ')} 】
-${userSelectionStr}
-■ アプリ内の解説:
+■ 正解: 【 ${sortedCorrect.join(', ')} 】
+${userSelectionStr}■ アプリ内の解説:
 ・全体概要: ${quiz.explanations.overall}
 ${detailsText}
 

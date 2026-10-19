@@ -51,7 +51,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
   }, [quiz.id, previousAnswer]);
 
   const handleOpenEcosia = () => {
-    const prompt = formatQuizPromptForEcosia(quiz, selected);
+    const prompt = formatQuizPromptForEcosia(quiz, [...selected].sort());
     openEcosiaAiWithPrompt(prompt);
     setEcosiaNotice(true);
     setTimeout(() => setEcosiaNotice(false), 5000);
@@ -62,7 +62,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
     const next = selected.includes(key)
       ? selected.filter(k => k !== key)
       : [...selected, key];
-    setSelected(next);
+    setSelected([...next].sort());
   };
 
   // 判定ロジック
@@ -84,7 +84,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
 
     setIsSubmitted(true);
     setShowExplanation(true);
-    onAnswerSubmit(quiz.id, selected);
+    onAnswerSubmit(quiz.id, sortedUser);
 
     if (isFullyCorrect) {
       // 完全正解演出：紙吹雪
