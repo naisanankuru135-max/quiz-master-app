@@ -231,7 +231,13 @@ export const App: React.FC = () => {
   // ブックマーク切替
   const handleToggleBookmark = (quizId: string) => {
     toggleBookmark(quizId);
-    setProgress(loadProgress());
+    const updated = loadProgress();
+    setProgress(updated);
+    if (currentUser) {
+      saveProgressToCloud(currentUser.uid, updated).catch(err => {
+        console.error('Bookmark cloud save error:', err);
+      });
+    }
   };
 
   // リマインダー切替

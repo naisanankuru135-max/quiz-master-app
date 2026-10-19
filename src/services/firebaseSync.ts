@@ -4,6 +4,7 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithRedirect, 
+  getRedirectResult,
   signOut, 
   onAuthStateChanged, 
   User, 
@@ -135,6 +136,10 @@ export const onAuthStatusChange = (callback: (user: User | null) => void): (() =
     callback(null);
     return () => {};
   }
+  // リダイレクト復帰時の認証結果を確認
+  getRedirectResult(auth).catch((err) => {
+    console.warn('Redirect auth result check:', err);
+  });
   return onAuthStateChanged(auth, callback);
 };
 

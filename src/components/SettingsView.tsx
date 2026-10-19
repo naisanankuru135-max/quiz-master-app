@@ -45,7 +45,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [firebaseConfig, setFirebaseConfig] = useState<FirebaseConfig | null>(getStoredFirebaseConfig());
   const [configInput, setConfigInput] = useState<string>('');
-  const [isConfigEditing, setIsConfigEditing] = useState<boolean>(!getStoredFirebaseConfig());
+  const [isConfigEditing, setIsConfigEditing] = useState<boolean>(false);
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncMessage, setSyncMessage] = useState<{ text: string; isError?: boolean } | null>(null);
@@ -155,7 +155,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       }
     } catch (err: any) {
       console.error(err);
-      showSyncMessage(`⚠️ ログインエラー: ${err.message || 'ログインに失敗しました'}`, true);
+      if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
+        showSyncMessage('⚠️ Firebaseコンソールで「Authentication」のGoogleプロバイダーを有効化してください。', true);
+      } else if (err.code === 'auth/popup-blocked') {
+        showSyncMessage('⚠️ ポップアップがブロックされました。ブラウザのポップアップを許可するか、もう一度お試しください。', true);
+      } else if (err.code === 'auth/unauthorized-domain') {
+        showSyncMessage(`⚠️ 承認されていないドメインです。Firebase Consoleの「承認済みドメイン」にこのURLを追加してください。`, true);
+      } else {
+        showSyncMessage(`⚠️ ログインエラー: ${err.message || 'ログインに失敗しました'}`, true);
+      }
     } finally {
       setIsSyncing(false);
     }
@@ -294,11 +302,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* 1. ☁️ Google Cloud アカウント同期（Firebase） */}
+      {/* 1. ☁️ Google Cloud アカウント同期（公式サーバー連携） */}
       <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-sky-500/5 to-transparent border-2 border-indigo-500/30 dark:border-indigo-500/20 shadow-md space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-sky-500 text-white flex items-center justify-center text-xl shadow-md shadow-indigo-500/20 shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 to-sky-500 text-white flex items-center justify-center text-xl shadow-md shadow-indigo-500/20 shrink-0">
               <Cloud className="w-5 h-5" />
             </div>
             <div>
@@ -311,64 +319,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     クラウド同期中
                   </span>
-                ) : firebaseConfig ? (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                    未ログイン
-                  </span>
                 ) : (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                    未設定
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    公式サーバー接続済
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Googleアカウントでログインすると、スマホ・PC間で解答履歴やストリークがリアルタイム同期されます
+                Googleアカウントでログインすると、スマホ・PCなどの別端末間でも学習進捗・正答履歴・ストリークが自動で同期されます
               </p>
             </div>
           </div>
-
-          {/* 設定開閉ボタン */}
-          <button
-            type="button"
-            onClick={() => setIsConfigEditing(!isConfigEditing)}
-            className="self-start sm:self-center px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors"
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>{isConfigEditing ? '設定を閉じる' : 'GCP設定'}</span>
-          </button>
         </div>
 
-        {/* ログイン・同期操作エリア */}
+        {/* ログイン中 / 未ログインの表示切替 */}
         {currentUser ? (
-          <div className="p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-indigo-100 dark:border-indigo-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-emerald-200 dark:border-emerald-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-3">
               {currentUser.photoURL ? (
                 <img 
                   src={currentUser.photoURL} 
                   alt={currentUser.displayName || 'User'} 
-                  className="w-10 h-10 rounded-full border-2 border-indigo-500 shadow-sm"
+                  className="w-11 h-11 rounded-full border-2 border-emerald-500 shadow-sm shrink-0"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+                <div className="w-11 h-11 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0">
                   {currentUser.displayName?.[0] || 'U'}
                 </div>
               )}
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <div className="min-w-0">
+                <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 truncate">
                   <span>{currentUser.displayName || 'Googleアカウント'}</span>
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                   {currentUser.email}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={handleManualSync}
                 disabled={isSyncing}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span>{isSyncing ? '同期中...' : '今すぐ同期'}</span>
@@ -377,7 +371,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium flex items-center gap-1 transition-colors"
+                className="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium flex items-center gap-1 transition-colors"
                 title="ログアウト"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -386,107 +380,89 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
         ) : (
-          <div className="p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-indigo-100 dark:border-indigo-900/50 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-                  {firebaseConfig ? 'Googleアカウントで同期を開始する' : 'Google Cloud (Firebase) プロジェクトを登録してください'}
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {firebaseConfig 
-                    ? `プロジェクト: ${firebaseConfig.projectId} に接続できます` 
-                    : '下記の「GCP設定」にプロジェクトのFirebase設定を登録するとGoogleログインが可能になります'}
-                </p>
+          <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-indigo-100 dark:border-indigo-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="space-y-1">
+              <div className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                <span>ワンタップでクラウド同期を開始</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                  設定入力不要
+                </span>
               </div>
-
-              {firebaseConfig && (
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isSyncing}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all shrink-0"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>{isSyncing ? 'ログイン中...' : 'Googleでログインして同期'}</span>
-                </button>
-              )}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Googleでログインすると、あなた専用の学習データがGoogle Cloud (Firestore) に自動保存されます。
+              </p>
             </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isSyncing}
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 disabled:opacity-50 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-all shrink-0 active:scale-95"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>{isSyncing ? '接続中...' : 'Googleでログインして同期'}</span>
+            </button>
           </div>
         )}
 
-        {/* Firebase設定の入力・編集フォーム */}
+        {/* 高度な設定トグル（通常は不要） */}
+        <div className="pt-1 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setIsConfigEditing(!isConfigEditing)}
+            className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 flex items-center gap-1 font-medium transition-colors"
+          >
+            <KeyRound className="w-3 h-3" />
+            <span>{isConfigEditing ? '高度な設定を閉じる' : '⚙️ 高度な設定（カスタムFirebase）'}</span>
+          </button>
+        </div>
+
+        {/* カスタムFirebase設定フォーム（折りたたみ） */}
         {isConfigEditing && (
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900/60 shadow-sm space-y-3 animate-slideDown">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3 animate-slideDown text-xs">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <KeyRound className="w-4 h-4 text-indigo-500" />
-                Google Cloud / Firebase プロジェクト設定
-              </h4>
+              <span className="font-bold text-slate-700 dark:text-slate-300">
+                独自のFirebaseプロジェクトに差し替える場合のみ使用
+              </span>
               <button
                 type="button"
                 onClick={() => setIsGuideOpen(!isGuideOpen)}
-                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 font-bold"
+                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
               >
-                <span>3分セットアップ手順を見る</span>
-                {isGuideOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                <span>手順ガイド</span>
+                {isGuideOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </button>
             </div>
 
-            {/* 3分ガイド（アコーディオン） */}
             {isGuideOpen && (
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 space-y-2 animate-fadeIn">
-                <div className="font-bold text-indigo-600 dark:text-indigo-400">
-                  📖 3ステップ・完全無料のGoogle Cloud (Firebase) 連携手順:
-                </div>
-                <ol className="list-decimal list-inside space-y-1.5 leading-relaxed text-[11px]">
-                  <li>
-                    <a 
-                      href="https://console.firebase.google.com/" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-indigo-600 dark:text-indigo-400 underline font-bold inline-flex items-center gap-0.5"
-                    >
-                      Firebase Console <ExternalLink className="w-3 h-3" />
-                    </a> を開き、<strong>「プロジェクトを追加」</strong>（無料・クレカ不要）
-                  </li>
-                  <li>
-                    左メニューの <strong>「Authentication」</strong> ➔ 「始める」 ➔ ログイン方法で <strong>「Google」を有効化</strong>
-                  </li>
-                  <li>
-                    左メニューの <strong>「Firestore Database」</strong> ➔ 「データベースの作成」 ➔ 「テストモードで開始」を選択
-                  </li>
-                  <li>
-                    画面上部の歯車アイコン ⚙️ ➔ <strong>「プロジェクトの設定」</strong> ➔ 下部マイアプリの <strong>「&lt;/&gt; (ウェブ)」</strong> を追加 ➔ 表示された <code className="bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded font-mono">firebaseConfig = &#123; ... &#125;</code> の中身をコピーして下の枠に貼り付け！
-                  </li>
-                </ol>
+              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                <div>Firebase Consoleの「プロジェクトの設定」➔「マイアプリ」からWeb設定をコピーして貼り付けてください。</div>
               </div>
             )}
 
-            <form onSubmit={handleSaveFirebaseConfig} className="space-y-3">
+            <form onSubmit={handleSaveFirebaseConfig} className="space-y-2">
               <textarea
                 value={configInput}
                 onChange={(e) => setConfigInput(e.target.value)}
-                placeholder={`Firebase Consoleの firebaseConfig オブジェクトまたはJSONを貼り付けてください：\n{\n  "apiKey": "AIzaSy...",\n  "authDomain": "your-project.firebaseapp.com",\n  "projectId": "your-project"\n}`}
-                rows={5}
-                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100"
+                placeholder={`{\n  "apiKey": "AIzaSy...",\n  "projectId": "your-project"\n}`}
+                rows={3}
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100"
               />
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <button
                   type="submit"
                   disabled={!configInput.trim()}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold transition-all text-[11px]"
                 >
-                  <Cloud className="w-4 h-4" />
-                  設定を保存して接続
+                  カスタム設定を保存
                 </button>
-
                 {firebaseConfig && (
                   <button
                     type="button"
                     onClick={handleRemoveFirebaseConfig}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-colors"
+                    className="px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-[11px]"
                   >
-                    設定を解除
+                    公式設定にリセット
                   </button>
                 )}
               </div>
