@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import { UserProgress } from '../types/quiz';
 import { 
-  getStoredApiKey, saveApiKey, removeApiKey 
-} from '../services/aiService';
-import { 
   exportProgressJson, importProgressJson, resetAllProgress, saveProgress 
 } from '../utils/storage';
 import { requestNotificationPermission, sendStudyReminder } from '../utils/notification';
 import { 
-  Moon, Sun, Bell, Key, Download, Upload, RotateCcw, 
-  ShieldCheck, ExternalLink, Check, Settings,
+  Moon, Sun, Bell, Download, Upload, RotateCcw, 
+  ExternalLink, Settings,
   Sprout, Trees, Lock, Zap
 } from 'lucide-react';
 
@@ -28,27 +25,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   setDarkMode,
   totalQuizzesCount,
 }) => {
-  const [apiKey, setApiKey] = useState<string>(getStoredApiKey());
-  const [inputKey, setInputKey] = useState<string>('');
-  const [keySavedMsg, setKeySavedMsg] = useState<boolean>(false);
   const [importStatus, setImportStatus] = useState<string>('');
-
-  const handleSaveKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputKey.trim()) return;
-    saveApiKey(inputKey.trim());
-    setApiKey(inputKey.trim());
-    setInputKey('');
-    setKeySavedMsg(true);
-    setTimeout(() => setKeySavedMsg(false), 3000);
-  };
-
-  const handleRemoveKey = () => {
-    if (confirm('保存されたAPIキーを削除しますか？')) {
-      removeApiKey();
-      setApiKey('');
-    }
-  };
 
   const handleNotifyToggle = async () => {
     if (!progress.notificationEnabled) {
@@ -260,66 +237,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
         </div>
-      </div>
-
-      {/* 4. Gemini APIキー設定（BYOK / 上級者向け） */}
-      <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Key className="w-4 h-4 text-violet-500" />
-            Gemini API設定（画面内インライン対話用 / BYOK）
-          </h3>
-          <a
-            href="https://aistudio.google.com/app/apikey"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
-          >
-            キーを無料取得 <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-          入力されたキーはお使いのブラウザ内部（LocalStorage）にのみ安全に保存され、**外部サーバーや運営者には1ミリも送信されず一切見えません**。Google公式エンドポイントへ直接安全に通信します。
-        </p>
-
-        {apiKey ? (
-          <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>APIキーが安全に設定されています</span>
-            </div>
-            <button
-              onClick={handleRemoveKey}
-              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60 text-rose-600 text-xs font-bold hover:bg-rose-50"
-            >
-              削除
-            </button>
-          </div>
-        ) : null}
-
-        <form onSubmit={handleSaveKey} className="flex flex-col sm:flex-row items-center gap-2 pt-1">
-          <input
-            type="password"
-            value={inputKey}
-            onChange={(e) => setInputKey(e.target.value)}
-            placeholder={apiKey ? '新しいキーを入力して上書き（AIzaSy...）' : 'Gemini APIキーを入力（AIzaSy...）'}
-            className="w-full flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100"
-          />
-          <button
-            type="submit"
-            disabled={!inputKey.trim()}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-sm"
-          >
-            保存する
-          </button>
-        </form>
-
-        {keySavedMsg && (
-          <div className="text-xs text-emerald-600 font-bold flex items-center gap-1 animate-fadeIn">
-            <Check className="w-3.5 h-3.5" /> APIキーを安全に保存しました！
-          </div>
-        )}
       </div>
 
       {/* 4. 学習データのバックアップ & 復元 */}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserProgress } from '../types/quiz';
-import { Flame, Bell, Moon, Sun, BarChart2, BookOpen, Sparkles, Settings } from 'lucide-react';
+import { Flame, Bell, Moon, Sun, BarChart2, BookOpen, Settings, Sprout } from 'lucide-react';
 import { requestNotificationPermission, sendStudyReminder } from '../utils/notification';
 import { AppTab } from './BottomNavBar';
 
@@ -103,15 +103,15 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => setActiveTab('ai')}
-              className={`p-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium ${
+              className={`p-2 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium ${
                 activeTab === 'ai'
-                  ? 'bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
-              title="AI学習アシスタント相談室"
+              title="🌱 Ecosia AI 学習相談室（登録・API不要）"
             >
-              <Sparkles className="w-4 h-4 text-violet-500" />
-              <span className="font-bold">AI相談室</span>
+              <Sprout className="w-4 h-4 text-emerald-500" />
+              <span>AI相談室</span>
             </button>
 
             <button

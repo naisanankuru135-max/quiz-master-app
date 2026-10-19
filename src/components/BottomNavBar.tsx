@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, BarChart2, Sparkles, Settings } from 'lucide-react';
+import { BookOpen, BarChart2, Sprout, Settings } from 'lucide-react';
 
 export type AppTab = 'home' | 'quiz' | 'analytics' | 'ai' | 'settings';
 
@@ -25,8 +25,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
     },
     {
       id: 'ai' as const,
-      label: 'AI',
-      icon: Sparkles,
+      label: '🌱 AI相談',
+      icon: Sprout,
       highlight: true,
     },
     {
@@ -50,7 +50,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
               className={`flex-1 py-1 px-2 flex flex-col items-center justify-center gap-1 transition-all rounded-xl ${
                 isActive
                   ? tab.highlight
-                    ? 'text-violet-600 dark:text-violet-400 font-bold'
+                    ? 'text-emerald-600 dark:text-emerald-400 font-bold'
                     : 'text-indigo-600 dark:text-indigo-400 font-bold'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium'
               }`}
@@ -59,14 +59,14 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
                 className={`relative p-1 rounded-xl transition-all ${
                   isActive
                     ? tab.highlight
-                      ? 'bg-violet-50 dark:bg-violet-950/60 scale-110'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 scale-110'
                       : 'bg-indigo-50 dark:bg-indigo-950/60 scale-110'
                     : ''
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive && tab.highlight ? 'text-violet-600 dark:text-violet-400' : ''}`} />
+                <Icon className={`w-5 h-5 ${isActive && tab.highlight ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
                 {tab.highlight && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 )}
               </div>
               <span className="text-[11px] leading-tight">

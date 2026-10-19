@@ -3,7 +3,7 @@ import { QuizQuestion } from '../types/quiz';
 import confetti from 'canvas-confetti';
 import { 
   Bookmark, BookmarkCheck, 
-  ArrowRight, ArrowLeft, Sparkles, HelpCircle, Save, Bot,
+  ArrowRight, ArrowLeft, Sparkles, HelpCircle, Save,
   Sprout, ExternalLink, CheckCircle2
 } from 'lucide-react';
 import { formatQuizPromptForEcosia, openEcosiaAiWithPrompt } from '../utils/ecosiaAi';
@@ -366,16 +366,16 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                     </div>
                   )}
 
-                  {/* サブ: Gemini API（BYOK / 画面内インライン質問） */}
+                  {/* AI相談室タブへの引き継ぎリンク */}
                   <div className="flex items-center justify-end pt-1">
                     <button
                       type="button"
                       onClick={() => onAskAi?.(quiz)}
-                      className="text-[11px] text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
-                      title="APIキーを設定してこの画面内でAIと対話する"
+                      className="text-[11px] text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 flex items-center gap-1.5 px-2 py-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+                      title="AI相談室タブでこの問題や関連テーマを確認する"
                     >
-                      <Bot className="w-3.5 h-3.5" />
-                      <span>Gemini APIでインライン質問する（要キー）</span>
+                      <Sprout className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>AI相談室タブでテーマ別論点も見る</span>
                     </button>
                   </div>
                 </div>
