@@ -4,7 +4,7 @@ import { Flame, Bell, Moon, Sun, BarChart2, BookOpen, RotateCcw, Search, Setting
 import { requestNotificationPermission, sendStudyReminder } from '../utils/notification';
 import { AppTab } from './BottomNavBar';
 import { User } from 'firebase/auth';
-import { getTodayString } from '../utils/storage';
+import { getTodayStudyCount } from '../utils/storage';
 
 interface HeaderProps {
   progress: UserProgress;
@@ -13,6 +13,7 @@ interface HeaderProps {
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
   onNotifyToggle: () => void;
+  onShowToast: (message: string) => void;
   currentUser?: User | null;
 }
 
@@ -23,27 +24,39 @@ export const Header: React.FC<HeaderProps> = ({
   darkMode,
   setDarkMode,
   onNotifyToggle,
+  onShowToast,
   currentUser,
 }) => {
   const handleNotificationClick = async () => {
+    if (progress.notificationEnabled) {
+      onNotifyToggle();
+      onShowToast('学習リマインダーをOFFにしました。');
+      return;
+    }
+
     const granted = await requestNotificationPermission();
     if (granted) {
       onNotifyToggle();
       sendStudyReminder('リマインダー通知が有効になりました！毎日学習をサポートします。');
+      onShowToast('学習リマインダーをONにしました。設定画面で通知時刻を変更できます。');
+    } else {
+      onShowToast('通知が許可されませんでした。ブラウザの通知設定を確認してください。');
     }
   };
 
-  const todayCount = progress.activityHistory.find(
-    a => a.date === getTodayString()
-  )?.count || 0;
+  const todayCount = getTodayStudyCount(progress);
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-5xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
         
         {/* ロゴ / タイトル（スマホでも絶対に1行に収まる設計） */}
-        <div 
-          onClick={() => setActiveTab('home')}
+        <a
+          href="#home"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveTab('home');
+          }}
           className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer group shrink-0"
         >
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform shrink-0">
@@ -59,15 +72,19 @@ export const Header: React.FC<HeaderProps> = ({
             </h1>
             <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400">厳選307問（全607ファクト網羅）</p>
           </div>
-        </div>
+        </a>
 
         {/* 右側：ストリーク & PCナビ & ツールボタン */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           
           {/* ストリーク（スマホではコンパクトに 🔥 X日） */}
-          <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 font-bold text-xs shadow-sm" title="連続学習日数">
-            <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-            <span>{progress.streak.current}日<span className="hidden xl:inline">連続</span></span>
+          <div
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-bold text-xs shadow-sm"
+            title={progress.streak.current > 0 ? `連続学習 ${progress.streak.current}日` : '連続学習はまだ始まっていません'}
+            aria-label={progress.streak.current > 0 ? `連続学習 ${progress.streak.current}日` : '連続学習日数 未開始'}
+          >
+            <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" aria-hidden="true" />
+            <span>{progress.streak.current > 0 ? `${progress.streak.current}日` : '—'}<span className="hidden xl:inline">{progress.streak.current > 0 ? '連続' : ' 未開始'}</span></span>
           </div>
 
           {/* 本日の解答数（PC/タブレット用） */}
@@ -87,6 +104,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
               title="特訓モード"
+              aria-label="特訓モード"
+              aria-current={activeTab === 'home' || activeTab === 'quiz' ? 'page' : undefined}
             >
               <BookOpen className="w-4 h-4" />
               <span className="hidden xl:inline">特訓モード</span>
@@ -100,6 +119,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
               title="忘却曲線・復習"
+              aria-label="忘却曲線・復習"
+              aria-current={activeTab === 'review' ? 'page' : undefined}
             >
               <RotateCcw className="w-4 h-4" />
               <span className="hidden xl:inline">復習</span>
@@ -113,6 +134,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
               title="時事用語・ファクト辞書"
+              aria-label="時事用語・ファクト辞書"
+              aria-current={activeTab === 'dictionary' ? 'page' : undefined}
             >
               <Search className="w-4 h-4" />
               <span className="hidden xl:inline">辞書</span>
@@ -126,6 +149,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
               title="成績・分析"
+              aria-label="成績・分析"
+              aria-current={activeTab === 'analytics' ? 'page' : undefined}
             >
               <BarChart2 className="w-4 h-4" />
               <span className="hidden xl:inline">成績</span>
@@ -139,6 +164,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
               title="🌱 Ecosia AI 学習相談室（登録・API不要）"
+              aria-label="Ecosia AI 学習相談室"
+              aria-current={activeTab === 'ai' ? 'page' : undefined}
             >
               <Sprout className="w-4 h-4 text-emerald-500" />
               <span className="hidden xl:inline">AI相談室</span>
@@ -156,6 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
               }`}
               title={currentUser ? `Google Cloud同期中 (${currentUser.displayName || currentUser.email})` : 'Google Cloud同期を設定'}
+              aria-label={currentUser ? 'Google Cloud同期の設定を開く（同期中）' : 'Google Cloud同期の設定を開く'}
             >
               {currentUser?.photoURL ? (
                 <img 
@@ -176,6 +204,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
               }`}
               title={progress.notificationEnabled ? '学習リマインダー通知 ON' : 'リマインダー通知を設定'}
+              aria-label={progress.notificationEnabled ? '学習リマインダー通知をOFFにする' : '学習リマインダー通知をONにする'}
+              aria-pressed={progress.notificationEnabled}
             >
               <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -184,6 +214,8 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setDarkMode(!darkMode)}
               className="p-1.5 sm:p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="テーマ切替"
+              aria-label={darkMode ? 'ライトモードに切り替える' : 'ダークモードに切り替える'}
+              aria-pressed={darkMode}
             >
               {darkMode ? <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
@@ -197,6 +229,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
               title="設定"
+              aria-label="設定画面を開く"
+              aria-current={activeTab === 'settings' ? 'page' : undefined}
             >
               <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>

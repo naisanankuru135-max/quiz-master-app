@@ -108,6 +108,12 @@ export interface UserProgress {
   sessionUpdatedAt?: string; // セッションの開始/更新/破棄日時（端末間同期用）
   notificationTime: string; // e.g. "20:00"
   notificationEnabled: boolean;
+  /** 最後に学習リマインダーを送った日（YYYY-MM-DD）。同日の重複通知を防ぐ */
+  lastNotificationDate?: string;
+  /** 今日の30問を完了した日（YYYY-MM-DD） */
+  dailyCompletedDate?: string;
+  /** 完了した今日の30問のID（同じ30問を復習として再演習するため） */
+  dailyCompletedQuizIds?: string[];
   spacedRepetition: Record<string, SpacedRepetitionItem>; // 忘却曲線復習ステータス
   dailyLogs: Record<string, DailyLogRecord[]>; // 日別解答履歴 (YYYY-MM-DD -> records)
   mockHistory?: MockHistoryRecord[]; // 本番模試の結果履歴（新しい順）

@@ -4,7 +4,7 @@ import {
   Flame, Play, BookOpen, ChevronRight, History 
 } from 'lucide-react';
 import { QuestionCountModal } from './QuestionCountModal';
-import { getTodayStudyCount, getTodayMockCount } from '../utils/storage';
+import { getTodayString, getTodayStudyCount, getTodayMockCount } from '../utils/storage';
 
 interface HomeDashboardProps {
   progress: UserProgress;
@@ -12,6 +12,7 @@ interface HomeDashboardProps {
   onStartMode: (mode: QuizMode, category?: string, count?: number) => void;
   onResumeSession: () => void;
   onDiscardSession: () => void;
+  onShowToast: (message: string) => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -20,6 +21,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onStartMode,
   onResumeSession,
   onDiscardSession,
+  onShowToast,
 }) => {
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -40,6 +42,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const todayCount = getTodayStudyCount(progress);
   const todayMockCount = getTodayMockCount(progress);
   const bookmarkedQuizzes = allQuizzes.filter(q => progress.bookmarks?.includes(q.id));
+  const dailyCompleted = progress.dailyCompletedDate === getTodayString();
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8 pb-12">
@@ -104,14 +107,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="sm:text-right shrink-0">
             <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400 flex items-center sm:justify-end gap-1">
               <span>{todayCount}</span>
-              <span className="text-sm font-normal text-slate-400">/ {progress.dailyGoal}問</span>
+              <span className="text-sm font-normal text-slate-500 dark:text-slate-400">/ {progress.dailyGoal}問</span>
               {todayCount > progress.dailyGoal && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
                   +{todayCount - progress.dailyGoal}
                 </span>
               )}
             </div>
-            <div className="text-xs text-slate-400 mt-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {todayCount >= progress.dailyGoal ? '🎯 本日の目標達成！' : `達成率 ${Math.min(100, Math.round((todayCount / progress.dailyGoal) * 100))}%`}
             </div>
             {todayMockCount > 0 && (
@@ -123,7 +126,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         </div>
 
         {/* プログレスバー */}
-        <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full mt-6 overflow-hidden">
+        <div
+          className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full mt-6 overflow-hidden"
+          role="progressbar"
+          aria-label="本日の学習目標の達成率"
+          aria-valuemin={0}
+          aria-valuemax={progress.dailyGoal}
+          aria-valuenow={Math.min(todayCount, progress.dailyGoal)}
+        >
           <div 
             className="bg-gradient-to-r from-indigo-500 via-violet-500 to-amber-500 h-full rounded-full transition-all duration-700"
             style={{ width: `${Math.min(100, (todayCount / progress.dailyGoal) * 100)}%` }}
@@ -142,27 +152,59 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           
           {/* ① 今日の30問 */}
           <div 
-            onClick={() => onStartMode('daily30')}
-            className="p-6 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 border-2 border-indigo-200 dark:border-indigo-800/80 hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md group flex flex-col justify-between"
+            onClick={() => {
+              if (dailyCompleted) {
+                const retry = window.confirm('本日の30問は完了しています。同じ30問をもう一度解きますか？（復習扱い・成績は上書きされます）');
+                if (!retry) return;
+              }
+              onStartMode('daily30');
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (dailyCompleted) {
+                  const retry = window.confirm('本日の30問は完了しています。同じ30問をもう一度解きますか？（復習扱い・成績は上書きされます）');
+                  if (!retry) return;
+                }
+                onStartMode('daily30');
+              }
+            }}
+            className={`p-6 rounded-2xl border-2 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md group flex flex-col justify-between ${
+              dailyCompleted
+                ? 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border-emerald-300 dark:border-emerald-800'
+                : 'bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 border-indigo-200 dark:border-indigo-800/80 hover:border-indigo-500 dark:hover:border-indigo-400'
+            }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-2xl shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-                  🔥
+                <span className={`w-12 h-12 rounded-xl text-white flex items-center justify-center text-2xl shadow-md group-hover:scale-105 transition-transform ${
+                  dailyCompleted ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-indigo-600 shadow-indigo-500/20'
+                }`}>
+                  {dailyCompleted ? '✓' : '🔥'}
                 </span>
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
-                  日課おすすめ
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                  dailyCompleted
+                    ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300'
+                }`}>
+                  {dailyCompleted ? '本日完了 ✓' : '日課おすすめ'}
                 </span>
               </div>
               <h4 className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-4 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                 今日の30問（デイリー）
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                全問題から毎日バランス良く30問を自動ピックアップ。毎日の習慣化に最適です。
+                {dailyCompleted
+                  ? '本日の30問は完了しました。もう一度解く場合は、同じ30問を復習として再挑戦できます。'
+                  : '全問題から毎日バランス良く30問を自動ピックアップ。毎日の習慣化に最適です。'}
               </p>
             </div>
-            <div className="mt-6 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
-              <span>30問チャレンジ</span>
+            <div className={`mt-6 flex items-center justify-between text-xs font-bold ${
+              dailyCompleted ? 'text-emerald-700 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'
+            }`}>
+              <span>{dailyCompleted ? '同じ30問をもう一度（復習）' : '30問チャレンジ'}</span>
               <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
@@ -202,7 +244,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div 
             onClick={() => {
               if (incorrectQuizzes.length === 0) {
-                alert('現在、間違えた問題はありません！素晴らしい成果です。');
+                onShowToast('現在、直近の誤答はありません！素晴らしい成果です。');
                 return;
               }
               setModalConfig({
@@ -214,7 +256,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             className={`p-6 rounded-2xl border-2 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md group flex flex-col justify-between ${
               incorrectQuizzes.length > 0
                 ? 'bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-900/50 hover:border-rose-500'
-                : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60'
+                : 'bg-slate-50 dark:bg-slate-900/40 border-slate-300 dark:border-slate-700 border-dashed'
             }`}
           >
             <div>
@@ -223,14 +265,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   🎯
                 </span>
                 <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                  要克服: {incorrectQuizzes.length}問
+                  直近の誤答: {incorrectQuizzes.length}問
                 </span>
               </div>
               <h4 className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-4 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
-                苦手特訓（誤答クイズ）
+                苦手特訓（直近の誤答）
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                直近間違えた問題や部分正解だった問題だけを抽出。弱点を集中攻略します。
+                直近間違えた問題や部分正解だった問題だけを抽出。復習タブの「本日期日の復習」とは別の、弱点集中用リストです。
               </p>
             </div>
             <div className="mt-6 flex items-center justify-between text-xs font-bold text-rose-600 dark:text-rose-400">
@@ -270,7 +312,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div 
             onClick={() => {
               if (bookmarkedQuizzes.length === 0) {
-                alert('ブックマークした問題はまだありません。クイズ画面の右上★ボタンで後から解き直したい問題を保存できます。');
+                onShowToast('ブックマークした問題はまだありません。クイズ画面の右上★ボタンで保存できます。');
                 return;
               }
               onStartMode('bookmark', '★ ブックマーク問題', bookmarkedQuizzes.length);
@@ -278,7 +320,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             className={`p-6 rounded-2xl border-2 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md group flex flex-col justify-between ${
               bookmarkedQuizzes.length > 0
                 ? 'bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 hover:border-amber-500'
-                : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60'
+                : 'bg-slate-50 dark:bg-slate-900/40 border-slate-300 dark:border-slate-700 border-dashed'
             }`}
           >
             <div>
@@ -329,10 +371,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-400 transition-all cursor-pointer shadow-sm hover:shadow-md flex items-center justify-between group"
               >
                 <div>
-                  <h5 className="font-bold text-sm text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                     {cat}
-                  </h5>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     {answered} / {count} 問 解答済み
                   </p>
                 </div>

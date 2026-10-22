@@ -129,7 +129,28 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
     item.nextReviewDate &&
     item.nextReviewDate <= today
   );
-  const allDueQuizIds = allDueItems.map(item => item.quizId);
+  // N6: 期日が古い順 → ステージが低い順 → 初回解答日が古い順 で優先ソート
+  const stageRank = (stage: SpacedRepetitionItem['currentStage']) =>
+    stage === 'completed' ? 99 : stage;
+  const sortedDueItems = [...allDueItems].sort((a, b) => {
+    return (
+      a.nextReviewDate.localeCompare(b.nextReviewDate) ||
+      stageRank(a.currentStage) - stageRank(b.currentStage) ||
+      a.firstAnsweredDate.localeCompare(b.firstAnsweredDate) ||
+      a.quizId.localeCompare(b.quizId)
+    );
+  });
+  const allDueQuizIds = sortedDueItems.map(item => item.quizId);
+  const weakCount = Object.values(progress.history || {}).filter(h => !h.isFullyCorrect).length;
+
+  const startReviewChunk = (count: number) => {
+    onStartReviewSession(
+      allDueQuizIds.slice(0, count),
+      count >= allDueQuizIds.length
+        ? `本日の復習一括（全${allDueQuizIds.length}問）`
+        : `本日の復習（優先${count}問 / 残り${allDueQuizIds.length - count}問）`
+    );
+  };
 
   // 日別解答ログ（最古が左）
   const dailyLogsMap = progress.dailyLogs || {};
@@ -154,7 +175,7 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
                 </h2>
               </div>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
-                初めて解いた日を基準に、最適なタイミングで復習できる機能（エビングハウスの忘却曲線）
+                初めて解いた日を基準に、最適なタイミングで復習できる機能（エビングハウスの忘却曲線）。ホームの「直近の誤答」とは別の、本日期日到来分です。
               </p>
             </div>
 
@@ -181,7 +202,7 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                  本日の復習タスク
+                  本日の復習タスク（期日到来分）
                 </div>
                 <div className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
                   {allDueQuizIds.length > 0 ? (
@@ -194,16 +215,52 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
             </div>
 
             {allDueQuizIds.length > 0 ? (
-              <button
-                onClick={() => onStartReviewSession(allDueQuizIds, `本日の復習一括（全${allDueQuizIds.length}問）`)}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>今日解くべき問題を一括スタート</span>
-                <Play className="w-4 h-4 fill-current" />
-              </button>
+              <div className="flex flex-col sm:items-end gap-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2">
+                  {allDueQuizIds.length > 20 ? (
+                    <>
+                      <button
+                        onClick={() => startReviewChunk(20)}
+                        className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        <span>今日は20問だけ</span>
+                        <Play className="w-4 h-4 fill-current" />
+                      </button>
+                      <button
+                        onClick={() => startReviewChunk(10)}
+                        className="px-3 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-xs font-bold transition-colors"
+                      >
+                        10問
+                      </button>
+                      <button
+                        onClick={() => startReviewChunk(allDueQuizIds.length)}
+                        className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-colors"
+                      >
+                        全{allDueQuizIds.length}問
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => startReviewChunk(allDueQuizIds.length)}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      <span>今日の{allDueQuizIds.length}問を一括スタート</span>
+                      <Play className="w-4 h-4 fill-current" />
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 text-left sm:text-right">
+                  優先順: 期日が古い順 → ステージが低い順。残り{allDueQuizIds.length}問を分割して開始できます。
+                </p>
+              </div>
             ) : (
-              <div className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 self-start sm:self-auto">
-                オールクリア 🎯
+              <div className="text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 self-start sm:self-auto max-w-xs">
+                <div>本日期日の復習はありません ✓</div>
+                {weakCount > 0 && (
+                  <div className="mt-0.5 font-normal text-[11px] text-emerald-800/80 dark:text-emerald-200/80">
+                    直近の誤答 {weakCount}問は、ホームの「苦手特訓（直近の誤答）」から解けます。
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -288,6 +345,8 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
       <section className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md overflow-hidden">
         <button
           onClick={() => setShowCompletedList(!showCompletedList)}
+          aria-expanded={showCompletedList}
+          aria-controls="completed-mastered-list"
           className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
@@ -310,7 +369,7 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
         </button>
 
         {showCompletedList && (
-          <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30">
+          <div id="completed-mastered-list" className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30">
             {completedItems.length === 0 ? (
               <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">
                 まだ完全習得した問題はありません。復習を重ねて1ヶ月後をクリアするとここに記録されます！
@@ -346,8 +405,9 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
                               onResetQuizProgress(q.id);
                             }
                           }}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                          className="p-1 rounded-lg text-slate-500 dark:text-slate-400 hover:text-rose-500 transition-colors"
                           title="進捗をリセットして最初から解き直す"
+                          aria-label="この問題の復習進捗をリセット"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
                         </button>
@@ -411,7 +471,14 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
                       <span className="text-slate-500 dark:text-slate-400">正答率</span>
                       <span className="font-bold text-indigo-600 dark:text-indigo-400">{accuracy}%</span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"
+                      role="progressbar"
+                      aria-label={`${formatShortDate(dateStr)}の正答率`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={accuracy}
+                    >
                       <div 
                         className={`h-full rounded-full transition-all duration-300 ${
                           accuracy >= 80 ? 'bg-emerald-500' : accuracy >= 50 ? 'bg-amber-500' : 'bg-rose-500'
@@ -435,13 +502,18 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
       {/* 4. 日別解答履歴モーダル（仕様書第4項完全準拠） */}
       {selectedHistoryDate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="daily-history-title"
+            className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden"
+          >
             
             {/* モーダルヘッダー */}
             <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/50">
               <div>
-                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-indigo-500" />
+                <h3 id="daily-history-title" className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-indigo-500" aria-hidden="true" />
                   <span>{formatShortDate(selectedHistoryDate)} の解答履歴</span>
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -450,9 +522,10 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
               </div>
               <button
                 onClick={() => setSelectedHistoryDate(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors"
+                aria-label="日別履歴を閉じる"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 

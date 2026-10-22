@@ -38,6 +38,9 @@ export function getDefaultProgress(): UserProgress {
     activeSession: null,
     notificationTime: '20:00',
     notificationEnabled: false,
+    lastNotificationDate: '',
+    dailyCompletedDate: '',
+    dailyCompletedQuizIds: [],
     spacedRepetition: {},
     dailyLogs: {},
     mockHistory: [],
@@ -57,9 +60,18 @@ export function loadProgress(): UserProgress {
     if (!data.mockHistory) data.mockHistory = [];
     if (data.shuffleOptions === undefined) data.shuffleOptions = true;
     if (!data.unlockedAchievements) data.unlockedAchievements = [];
+    if (data.lastNotificationDate === undefined) data.lastNotificationDate = '';
+    if (data.dailyCompletedDate === undefined) data.dailyCompletedDate = '';
+    if (!data.dailyCompletedQuizIds) data.dailyCompletedQuizIds = [];
 
-    // 既存の履歴データ（history）からの初期マイグレーション（未登録なら自動登録）
-    if (Object.keys(data.spacedRepetition).length === 0 && Object.keys(data.history).length > 0) {
+    // 既存の履歴データ（history）からの初期マイグレーション
+    // dailyLogs が空の「初回だけ」実行する。spacedRepetition が空でも、
+    // すでに日別ログがある場合は再マイグレーションしない（重複防止）。
+    if (
+      Object.keys(data.spacedRepetition).length === 0 &&
+      Object.keys(data.dailyLogs).length === 0 &&
+      Object.keys(data.history).length > 0
+    ) {
       Object.values(data.history).forEach(h => {
         const answeredAt = new Date(h.answeredAt);
         // UTC の日付文字列ではなく、ユーザーのローカル日付で移行する
@@ -128,7 +140,8 @@ export function recordAnswer(
   category: string,
   userAnswers: ('A' | 'B' | 'C' | 'D')[],
   correctAnswers: ('A' | 'B' | 'C' | 'D')[],
-  mode?: QuizMode
+  mode?: QuizMode,
+  persist = true
 ): UserProgress {
   const progress = loadProgress();
   const today = getTodayString();
@@ -272,18 +285,20 @@ export function recordAnswer(
     progress.streak.lastActiveDate = today;
   }
 
-  // 本日のアクティビティ履歴更新
-  let todayActivity = progress.activityHistory.find(a => a.date === today);
-  if (!todayActivity) {
-    todayActivity = { date: today, count: 0, correctCount: 0 };
-    progress.activityHistory.push(todayActivity);
-  }
-  todayActivity.count += 1;
-  if (isFullyCorrect) {
-    todayActivity.correctCount += 1;
+  // 本日のアクティビティ履歴更新（模試は学習目標・学習推移から除外）
+  if (mode !== 'mockTest') {
+    let todayActivity = progress.activityHistory.find(a => a.date === today);
+    if (!todayActivity) {
+      todayActivity = { date: today, count: 0, correctCount: 0 };
+      progress.activityHistory.push(todayActivity);
+    }
+    todayActivity.count += 1;
+    if (isFullyCorrect) {
+      todayActivity.correctCount += 1;
+    }
   }
 
-  saveProgress(progress);
+  if (persist) saveProgress(progress);
   return progress;
 }
 
@@ -302,10 +317,14 @@ export function getTodayStudyCount(progress: UserProgress): number {
   return ids.size;
 }
 
-/** 本日の模試解答数（デイリー目標とは別カウント） */
+/** 本日の模試解答数（デイリー目標とは別カウント・問題IDでユニーク） */
 export function getTodayMockCount(progress: UserProgress): number {
   const today = getTodayString();
-  return (progress.dailyLogs?.[today] || []).filter(log => log.mode === 'mockTest').length;
+  const ids = new Set<string>();
+  for (const log of progress.dailyLogs?.[today] || []) {
+    if (log.mode === 'mockTest') ids.add(log.quizId);
+  }
+  return ids.size;
 }
 
 /** 模試結果を履歴に追加（新しい順・最大50件） */
@@ -331,19 +350,23 @@ export function resetSpacedRepetition(quizId: string): UserProgress {
   return progress;
 }
 
-export function saveActiveSession(session: ResumeSession): UserProgress {
-  const progress = loadProgress();
+export function saveActiveSession(
+  session: ResumeSession,
+  base?: UserProgress,
+  persist = true
+): UserProgress {
+  const progress = base || loadProgress();
   progress.activeSession = session;
   progress.sessionUpdatedAt = new Date().toISOString();
-  saveProgress(progress);
+  if (persist) saveProgress(progress);
   return progress;
 }
 
-export function clearActiveSession(): UserProgress {
-  const progress = loadProgress();
+export function clearActiveSession(base?: UserProgress, persist = true): UserProgress {
+  const progress = base || loadProgress();
   progress.activeSession = null;
   progress.sessionUpdatedAt = new Date().toISOString();
-  saveProgress(progress);
+  if (persist) saveProgress(progress);
   return progress;
 }
 

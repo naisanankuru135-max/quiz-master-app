@@ -2,18 +2,51 @@ import React from 'react';
 import { UserProgress, QuizQuestion } from '../types/quiz';
 import { Award, TrendingUp, BarChart3, Trophy } from 'lucide-react';
 import { ALL_ACHIEVEMENTS, checkUnlockedAchievements } from '../utils/achievements';
-import { getTodayString, getTodayStudyCount, getTodayMockCount } from '../utils/storage';
+import { getTodayString, getTodayStudyCount, getTodayMockCount, addDays } from '../utils/storage';
 
 interface AnalyticsViewProps {
   progress: UserProgress;
   allQuizzes: QuizQuestion[];
 }
 
+interface StudyLogWithDate {
+  quizId: string;
+  category: string;
+  isFullyCorrect: boolean;
+  answeredAt: string;
+  date: string;
+}
+
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizzes }) => {
-  const historyList = Object.values(progress.history);
-  const totalAnswered = historyList.length;
-  const fullyCorrectCount = historyList.filter(h => h.isFullyCorrect).length;
-  const overallAccuracy = totalAnswered > 0 ? Math.round((fullyCorrectCount / totalAnswered) * 100) : 0;
+  // N10: 正答率の定義を「初回」「最新」「全解答」に分離。
+  // 模試ログは学習正答率から除外し、mockHistory 側で別集計する。
+  const allStudyLogs: StudyLogWithDate[] = Object.entries(progress.dailyLogs || {})
+    .sort(([a], [b]) => a.localeCompare(b))
+    .flatMap(([date, logs]) =>
+      (logs || [])
+        .filter(log => log.mode !== 'mockTest')
+        .map(log => ({ ...log, date }))
+    );
+
+  const firstStudyByQuiz = new Map<string, StudyLogWithDate>();
+  const latestStudyByQuiz = new Map<string, StudyLogWithDate>();
+  allStudyLogs.forEach(log => {
+    if (!firstStudyByQuiz.has(log.quizId)) firstStudyByQuiz.set(log.quizId, log);
+    latestStudyByQuiz.set(log.quizId, log);
+  });
+
+  const accuracyOf = (logs: StudyLogWithDate[]) => {
+    if (logs.length === 0) return 0;
+    return Math.round((logs.filter(log => log.isFullyCorrect).length / logs.length) * 100);
+  };
+
+  const firstStudyLogs = Array.from(firstStudyByQuiz.values());
+  const latestStudyLogs = Array.from(latestStudyByQuiz.values());
+  const firstAccuracy = accuracyOf(firstStudyLogs);
+  const overallAccuracy = accuracyOf(latestStudyLogs);
+  const allAttemptAccuracy = accuracyOf(allStudyLogs);
+  const totalAnswered = latestStudyLogs.length;
+  const fullyCorrectCount = latestStudyLogs.filter(h => h.isFullyCorrect).length;
   const unattemptedCount = Math.max(0, allQuizzes.length - totalAnswered);
 
   const todayStr = getTodayString();
@@ -25,24 +58,38 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
     ? Math.round((todayStudyLogs.filter(log => log.isFullyCorrect).length / todayStudyLogs.length) * 100)
     : 0;
 
-  // カテゴリ別集計
+  // カテゴリ別集計（各問題の最新学習解答ベース）
   const categories = Array.from(new Set(allQuizzes.map(q => q.category)));
+  const latestByQuizId = new Map<string, StudyLogWithDate>(
+    latestStudyLogs.map(log => [log.quizId, log] as const)
+  );
   const categoryStats = categories.map(cat => {
     const catQuizzes = allQuizzes.filter(q => q.category === cat);
-    const catAnswers = historyList.filter(h => h.category === cat);
-    const catCorrect = catAnswers.filter(h => h.isFullyCorrect).length;
-    const accuracy = catAnswers.length > 0 ? Math.round((catCorrect / catAnswers.length) * 100) : 0;
+    const catLatestLogs = catQuizzes
+      .map(q => latestByQuizId.get(q.id))
+      .filter((log): log is StudyLogWithDate => !!log);
+    const catCorrect = catLatestLogs.filter(h => h.isFullyCorrect).length;
+    const accuracy = catLatestLogs.length > 0 ? Math.round((catCorrect / catLatestLogs.length) * 100) : 0;
     return {
       category: cat,
       total: catQuizzes.length,
-      answered: catAnswers.length,
+      answered: catLatestLogs.length,
       correct: catCorrect,
       accuracy
     };
   });
 
-  // 折れ線グラフ用データ（直近7日〜14日）
-  const chartData = [...progress.activityHistory].slice(-7);
+  // 日次学習推移（直近7日・模試除外）
+  const chartDates = Array.from({ length: 7 }, (_, i) => addDays(todayStr, i - 6));
+  const chartData = chartDates.map(date => {
+    const logs = (progress.dailyLogs?.[date] || []).filter(log => log.mode !== 'mockTest');
+    return {
+      date,
+      count: logs.length,
+      correctCount: logs.filter(log => log.isFullyCorrect).length,
+    };
+  });
+  const chartMax = Math.max(10, ...chartData.map(d => d.count));
 
   // 模試履歴（新しい順）
   const mockHistory = progress.mockHistory || [];
@@ -94,20 +141,22 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
       {/* サマリーカード 4枚 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="text-xs text-slate-500 font-medium">全体正答率</div>
+          <div className="text-xs text-slate-500 font-medium">最新正答率</div>
           <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">
             {overallAccuracy}%
           </div>
-          <div className="text-xs text-slate-400 mt-1">完全正解: {fullyCorrectCount}問</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+            初回 {firstAccuracy}% ／ 全解答 {allAttemptAccuracy}%
+          </div>
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="text-xs text-slate-500 font-medium">本日の学習数</div>
           <div className="text-3xl font-black text-violet-600 dark:text-violet-400 mt-2">
             {todayCount}
-            <span className="text-sm text-slate-400 font-normal"> / {progress.dailyGoal}問</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400 font-normal"> / {progress.dailyGoal}問</span>
           </div>
-          <div className="text-xs text-slate-400 mt-1">本日正答率: {todayAccuracy}%</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">本日正答率: {todayAccuracy}%</div>
           {todayMockCount > 0 && (
             <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-1">
               模試 {todayMockCount}問は別カウント
@@ -116,22 +165,44 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="text-xs text-slate-500 font-medium">解答済み / 全問題</div>
+          <div className="text-xs text-slate-500 font-medium">学習解答済み / 全問題</div>
           <div className="text-3xl font-black text-slate-800 dark:text-slate-100 mt-2">
             {totalAnswered}
-            <span className="text-sm text-slate-400 font-normal"> / {allQuizzes.length}</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400 font-normal"> / {allQuizzes.length}</span>
           </div>
-          <div className="text-xs text-slate-400 mt-1">未踏問題: {unattemptedCount}問</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">未踏問題: {unattemptedCount}問</div>
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="text-xs text-slate-500 font-medium">連続学習記録</div>
           <div className="text-3xl font-black text-amber-500 mt-2 flex items-center gap-1">
-            🔥 {progress.streak.current}
-            <span className="text-sm font-normal text-slate-500">日</span>
+            🔥 {progress.streak.current > 0 ? progress.streak.current : '—'}
+            <span className="text-sm font-normal text-slate-500">{progress.streak.current > 0 ? '日' : ''}</span>
           </div>
-          <div className="text-xs text-slate-400 mt-1">ブックマーク: {progress.bookmarks.length}件</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">ブックマーク: {progress.bookmarks.length}件</div>
         </div>
+      </div>
+
+      {/* N10: 正答率の定義を明示 */}
+      <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50">
+        <p className="text-xs font-bold text-indigo-800 dark:text-indigo-200">正答率の定義（模試は別枠）</p>
+        <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div className="text-lg font-black text-indigo-700 dark:text-indigo-300">{firstAccuracy}%</div>
+            <div className="text-[11px] text-slate-600 dark:text-slate-400">初回（{firstStudyLogs.length}問）</div>
+          </div>
+          <div>
+            <div className="text-lg font-black text-indigo-700 dark:text-indigo-300">{overallAccuracy}%</div>
+            <div className="text-[11px] text-slate-600 dark:text-slate-400">最新（{latestStudyLogs.length}問 / 完全正解 {fullyCorrectCount}）</div>
+          </div>
+          <div>
+            <div className="text-lg font-black text-indigo-700 dark:text-indigo-300">{allAttemptAccuracy}%</div>
+            <div className="text-[11px] text-slate-600 dark:text-slate-400">全解答（{allStudyLogs.length}回）</div>
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+          初回＝各問題を最初に解いた時、最新＝各問題の直近の学習解答、全解答＝学習モードの延べ解答。模試の結果は下の「本番模試の履歴」で別集計します。
+        </p>
       </div>
 
       {/* 数直線・プログレスゲージ（80%合格ライン明示） */}
@@ -139,23 +210,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
         <div>
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <span>🎯</span>
-            正答率ゲージ（80% 合格ライン）
+            最新正答率ゲージ（80% 合格ライン）
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            赤点線が合格基準ライン（80%）です。全カテゴリで基準突破を目指しましょう。
+            各問題の直近の学習解答ベース（模試除く）。赤点線が合格基準ライン（80%）です。
           </p>
         </div>
 
         {/* 全体ゲージ */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm font-bold">
-            <span className="text-slate-800 dark:text-slate-200">総合正答率</span>
+            <span className="text-slate-800 dark:text-slate-200">最新正答率（学習のみ）</span>
             <span className={overallAccuracy >= 80 ? 'text-emerald-600' : 'text-indigo-600'}>
               {overallAccuracy}% {overallAccuracy >= 80 ? '(合格水準)' : ''}
             </span>
           </div>
 
-          <div className="relative w-full h-7 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+          <div
+            className="relative w-full h-7 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700"
+            role="progressbar"
+            aria-label="最新正答率"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={overallAccuracy}
+          >
             {/* バー */}
             <div
               className={`h-full transition-all duration-700 rounded-l-xl ${
@@ -181,7 +259,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
 
         {/* カテゴリ別ゲージ一覧 */}
         <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
-          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">カテゴリ別 正答率</h4>
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">カテゴリ別 最新正答率</h4>
           
           <div className="space-y-4">
             {categoryStats.map(stat => (
@@ -195,7 +273,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
                   </span>
                 </div>
 
-                <div className="relative w-full h-4 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                <div
+                  className="relative w-full h-4 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700"
+                  role="progressbar"
+                  aria-label={`${stat.category}の最新正答率`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={stat.accuracy}
+                >
                   <div
                     className={`h-full transition-all duration-500 rounded-l-lg ${
                       stat.accuracy >= 80 ? 'bg-emerald-500' : 'bg-indigo-500'
@@ -220,10 +305,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
         <div>
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-indigo-500" />
-            日次学習推移（解答数 & 正答数）
+            日次学習推移（模試除く）
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            日々の積み重ねが可視化されます。
+            学習モードの延べ解答数と完全正解数。模試は含みません。
           </p>
         </div>
 
@@ -237,9 +322,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
 
             {chartData.map((d, i) => {
               const x = 50 + (i * (420 / Math.max(1, chartData.length - 1)));
-              const maxVal = Math.max(10, ...chartData.map(c => c.count));
-              const yTotal = 120 - ((d.count / maxVal) * 90);
-              const yCorrect = 120 - ((d.correctCount / maxVal) * 90);
+              const yTotal = 120 - ((d.count / chartMax) * 90);
+              const yCorrect = 120 - ((d.correctCount / chartMax) * 90);
 
               return (
                 <g key={d.date}>
@@ -293,7 +377,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ progress, allQuizz
         <div className="flex items-center justify-center gap-6 text-xs text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded bg-indigo-500" />
-            <span>総解答数</span>
+            <span>学習解答数</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded bg-emerald-500" />

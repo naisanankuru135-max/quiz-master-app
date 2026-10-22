@@ -44,14 +44,20 @@ export const QuestionCountModal: React.FC<QuestionCountModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl relative animate-scaleUp">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="question-count-title"
+        className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl relative animate-scaleUp"
+      >
         
         {/* 閉じるボタン */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="absolute top-5 right-5 p-2 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          aria-label="問題数選択を閉じる"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         {/* ヘッダー */}
@@ -60,7 +66,7 @@ export const QuestionCountModal: React.FC<QuestionCountModalProps> = ({
             🎯
           </div>
           <div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">
+            <h3 id="question-count-title" className="text-lg font-black text-slate-900 dark:text-slate-100">
               出題問題数を選択
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">

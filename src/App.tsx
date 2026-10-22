@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { ALL_QUIZZES } from './data/quizzes';
 import { QuizQuestion, UserProgress, QuizMode, ResumeSession, MockHistoryRecord } from './types/quiz';
 import { 
   loadProgress, recordAnswer, saveActiveSession, 
   clearActiveSession, toggleBookmark, saveProgress,
-  resetSpacedRepetition, getTodayString,
+  resetSpacedRepetition, getTodayString, getTodayStudyCount,
   addMockHistory, isAnswerFullyCorrect
 } from './utils/storage';
 import { getDailyThirtyQuizzes } from './utils/prng';
-import { MockTestResultModal } from './components/MockTestResultModal';
+import { sendStudyReminder } from './utils/notification';
 import { ALL_ACHIEVEMENTS, checkUnlockedAchievements } from './utils/achievements';
 import { Achievement } from './types/quiz';
 import { 
@@ -22,12 +22,27 @@ import { User } from 'firebase/auth';
 import { Header } from './components/Header';
 import { HomeDashboard } from './components/HomeDashboard';
 import { QuizCard } from './components/QuizCard';
-import { ReviewWorkspaceView } from './components/ReviewWorkspaceView';
-import { DictionaryView } from './components/DictionaryView';
-import { AnalyticsView } from './components/AnalyticsView';
-import { AiAssistantView } from './components/AiAssistantView';
-import { SettingsView } from './components/SettingsView';
 import { BottomNavBar, AppTab } from './components/BottomNavBar';
+
+// 初回表示に不要な重量級ビューは遅延読み込み（D-2）
+const ReviewWorkspaceView = lazy(() =>
+  import('./components/ReviewWorkspaceView').then(m => ({ default: m.ReviewWorkspaceView }))
+);
+const DictionaryView = lazy(() =>
+  import('./components/DictionaryView').then(m => ({ default: m.DictionaryView }))
+);
+const AnalyticsView = lazy(() =>
+  import('./components/AnalyticsView').then(m => ({ default: m.AnalyticsView }))
+);
+const AiAssistantView = lazy(() =>
+  import('./components/AiAssistantView').then(m => ({ default: m.AiAssistantView }))
+);
+const SettingsView = lazy(() =>
+  import('./components/SettingsView').then(m => ({ default: m.SettingsView }))
+);
+const MockTestResultModal = lazy(() =>
+  import('./components/MockTestResultModal').then(m => ({ default: m.MockTestResultModal }))
+);
 
 export const App: React.FC = () => {
   const [progress, setProgress] = useState<UserProgress>(loadProgress());
@@ -134,8 +149,20 @@ export const App: React.FC = () => {
       setToastMessage('🎉 セッションが完了しました！成績を確認しましょう。');
     }
 
-    const cleared = clearActiveSession();
-    const updated = mockRecord ? addMockHistory(mockRecord) : cleared;
+    // デイリー完了時は activeSession クリアと完了記録を1回の保存にまとめる
+    const cleared = clearActiveSession(undefined, finishedMode !== 'daily30');
+    let updated = cleared;
+    if (finishedMode === 'daily30') {
+      updated = {
+        ...cleared,
+        dailyCompletedDate: getTodayString(),
+        dailyCompletedQuizIds: currentQuizIds,
+      };
+      saveProgress(updated);
+    }
+    if (mockRecord) {
+      updated = addMockHistory(mockRecord);
+    }
     setCurrentSession(null);
     setProgress(updated);
     if (currentUser) {
@@ -249,6 +276,50 @@ export const App: React.FC = () => {
     }
   }, [darkMode]);
 
+  // 学習リマインダーのローカルスケジューラ（N13 / D-4）
+  // アプリ起動中は1分ごと、復帰時・起動時に通知時刻を過ぎていれば1日1回通知する。
+  useEffect(() => {
+    if (!progress.notificationEnabled) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    const checkReminder = () => {
+      const today = getTodayString();
+      if (progress.lastNotificationDate === today) return;
+      if (getTodayStudyCount(progress) >= progress.dailyGoal) return;
+
+      const [hour, minute] = (progress.notificationTime || '20:00').split(':').map(Number);
+      const now = new Date();
+      const target = new Date(now);
+      target.setHours(Number.isFinite(hour) ? hour : 20, Number.isFinite(minute) ? minute : 0, 0, 0);
+      if (now.getTime() < target.getTime()) return;
+
+      if (sendStudyReminder('今日の30問がまだ残っています。復習期日も確認して、連続記録をつなげましょう！🔥')) {
+        const next = { ...progress, lastNotificationDate: today };
+        saveProgress(next);
+        setProgress(next);
+        if (currentUser) {
+          saveProgressToCloud(currentUser.uid, next).catch(err => {
+            console.error('Notification state cloud save error:', err);
+          });
+        }
+      }
+    };
+
+    checkReminder();
+    const interval = setInterval(checkReminder, 60_000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') checkReminder();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', checkReminder);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', checkReminder);
+    };
+  }, [progress, currentUser]);
+
   // モード開始ハンドラー
   const handleStartMode = (mode: QuizMode, category?: string, count?: number) => {
     // 進行中のセッションがある場合の確認ダイアログ
@@ -262,8 +333,17 @@ export const App: React.FC = () => {
     const attemptedIds = new Set(historyList.map(h => h.quizId));
 
     if (mode === 'daily30') {
-      // 今日の30問：PRNG日付シードによる決定論的シャッフル（未習得・復習優先配分）
-      targetQuizzes = getDailyThirtyQuizzes(ALL_QUIZZES, getTodayString(), progress);
+      const today = getTodayString();
+      if (progress.dailyCompletedDate === today && progress.dailyCompletedQuizIds?.length) {
+        // 本日完了後の再挑戦は、新しい30問を作らず「同じ30問」を同じ順序で復習する
+        const quizMap = new Map(ALL_QUIZZES.map(q => [q.id, q]));
+        targetQuizzes = progress.dailyCompletedQuizIds
+          .map(id => quizMap.get(id))
+          .filter((q): q is QuizQuestion => !!q);
+      } else {
+        // 今日の30問：PRNG日付シードによる決定論的シャッフル（未習得・復習優先配分）
+        targetQuizzes = getDailyThirtyQuizzes(ALL_QUIZZES, today, progress);
+      }
       setMockTimer(null);
       setMockElapsedSeconds(0);
     } else if (mode === 'unattempted') {
@@ -421,18 +501,17 @@ export const App: React.FC = () => {
     const currentQuiz = activeQuizList.find(q => q.id === quizId);
     if (!currentQuiz) return;
 
+    // D-1: 1問の解答で localStorage を3回も書き換えないよう、
+    // recordAnswer / saveActiveSession はメモリ上だけ更新し、最後に1回だけ保存する。
     let updatedProgress = recordAnswer(
       quizId,
       currentQuiz.category,
       selected,
       currentQuiz.correctAnswers,
-      currentSession?.mode
+      currentSession?.mode,
+      false
     );
 
-    // セッションの保存
-    // ※ recordAnswer が返す progress は「解答保存前」の activeSession を持っている。
-    //   そのまま後段で saveProgress すると、下で保存した answers が巻き戻るため、
-    //   saveActiveSession の戻り値で progress を置き換える。
     if (currentSession) {
       const nextSession: ResumeSession = {
         ...currentSession,
@@ -443,7 +522,7 @@ export const App: React.FC = () => {
         },
         timestamp: new Date().toISOString(),
       };
-      updatedProgress = saveActiveSession(nextSession);
+      updatedProgress = saveActiveSession(nextSession, updatedProgress, false);
       setCurrentSession(nextSession);
     }
 
@@ -655,13 +734,23 @@ export const App: React.FC = () => {
   // リマインダー切替
   const handleNotifyToggle = () => {
     const p = loadProgress();
-    p.notificationEnabled = !p.notificationEnabled;
+    const enabling = !p.notificationEnabled;
+    p.notificationEnabled = enabling;
+    if (enabling) {
+      // 有効化直後の即時通知と、スケジューラの同日通知が重ならないようにする
+      p.lastNotificationDate = getTodayString();
+    }
     saveProgress(p);
     setProgress(p);
+    if (currentUser) {
+      saveProgressToCloud(currentUser.uid, p).catch(err => {
+        console.error('Notification toggle cloud save error:', err);
+      });
+    }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       
       {/* 共通ヘッダー */}
       <Header
@@ -671,12 +760,17 @@ export const App: React.FC = () => {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         onNotifyToggle={handleNotifyToggle}
+        onShowToast={setToastMessage}
         currentUser={currentUser}
       />
 
       {/* ⑧ 実績アンロックトースト通知 */}
       {achievementToast && (
-        <div className="fixed top-20 right-4 sm:right-8 z-50 animate-bouncePop max-w-sm pointer-events-none">
+        <div
+          className="fixed top-20 right-4 sm:right-8 z-50 animate-bouncePop max-w-sm pointer-events-none"
+          role="status"
+          aria-live="polite"
+        >
           <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-indigo-600 text-white shadow-2xl shadow-amber-500/30 border border-amber-300/40 flex items-center gap-3.5 backdrop-blur">
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl shrink-0">
               {achievementToast.icon}
@@ -698,6 +792,13 @@ export const App: React.FC = () => {
 
       {/* メインコンテンツ */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-24 md:pb-8">
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-20 text-sm font-bold text-slate-500 dark:text-slate-400" role="status" aria-live="polite">
+              読み込み中...
+            </div>
+          }
+        >
         {activeTab === 'home' && (
           <HomeDashboard
             progress={progress}
@@ -705,6 +806,7 @@ export const App: React.FC = () => {
             onStartMode={handleStartMode}
             onResumeSession={handleResumeSession}
             onDiscardSession={handleDiscardSession}
+            onShowToast={setToastMessage}
           />
         )}
 
@@ -744,6 +846,7 @@ export const App: React.FC = () => {
               setActiveTab('ai');
             }}
             onResetProgress={handleResetQuizProgress}
+            onShowToast={setToastMessage}
             shuffleEnabled={progress.shuffleOptions !== false}
             onSearchInDictionary={(keyword) => {
               setDictionaryKeyword(keyword);
@@ -777,33 +880,40 @@ export const App: React.FC = () => {
             totalQuizzesCount={ALL_QUIZZES.length}
           />
         )}
+        </Suspense>
       </main>
 
       {/* 模試結果モーダル */}
       {completedMockData && (
-        <MockTestResultModal
-          quizIds={completedMockData.quizIds}
-          allQuizzes={ALL_QUIZZES}
-          answers={completedMockData.answers}
-          elapsedSeconds={completedMockData.elapsed}
-          onClose={() => {
-            setCompletedMockData(null);
-            setActiveTab('analytics');
-          }}
-          onRetry={() => {
-            setCompletedMockData(null);
-            handleStartMode('mockTest', undefined, 40);
-          }}
-          onReviewIncorrect={(incorrectIds) => {
-            setCompletedMockData(null);
-            handleStartReviewSession(incorrectIds, '模試の復習（不正解・部分正解）');
-          }}
-        />
+        <Suspense fallback={null}>
+          <MockTestResultModal
+            quizIds={completedMockData.quizIds}
+            allQuizzes={ALL_QUIZZES}
+            answers={completedMockData.answers}
+            elapsedSeconds={completedMockData.elapsed}
+            onClose={() => {
+              setCompletedMockData(null);
+              setActiveTab('analytics');
+            }}
+            onRetry={() => {
+              setCompletedMockData(null);
+              handleStartMode('mockTest', undefined, 40);
+            }}
+            onReviewIncorrect={(incorrectIds) => {
+              setCompletedMockData(null);
+              handleStartReviewSession(incorrectIds, '模試の復習（不正解・部分正解）');
+            }}
+          />
+        </Suspense>
       )}
 
       {/* インアプリトースト通知 */}
       {toastMessage && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-bouncePop pointer-events-none max-w-sm w-full px-4">
+        <div
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-bouncePop pointer-events-none max-w-sm w-full px-4"
+          role="status"
+          aria-live="polite"
+        >
           <div className="p-3.5 rounded-2xl bg-slate-900/95 dark:bg-slate-100/95 text-white dark:text-slate-900 shadow-2xl backdrop-blur flex items-center justify-center text-center text-xs sm:text-sm font-bold border border-slate-700/50 dark:border-slate-300/50">
             <span>{toastMessage}</span>
           </div>
@@ -811,7 +921,7 @@ export const App: React.FC = () => {
       )}
 
       {/* フッター（スマホではボトムナビゲーションの高さ分の余白を確保） */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 py-6 mb-16 md:mb-0 text-center text-xs text-slate-400 dark:text-slate-500">
+      <footer className="border-t border-slate-200 dark:border-slate-800 py-6 mb-16 md:mb-0 text-center text-xs text-slate-500 dark:text-slate-400">
         <p>© 2026 超難問クイズマスター - 完全網羅学習システム (GitHub Pages対応)</p>
       </footer>
 

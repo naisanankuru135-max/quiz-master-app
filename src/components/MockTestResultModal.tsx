@@ -60,7 +60,12 @@ export const MockTestResultModal: React.FC<MockTestResultModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mock-result-title"
+        className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6"
+      >
         
         {/* ヘッダー合否バナー */}
         <div className={`p-6 rounded-2xl text-center space-y-3 ${
@@ -75,7 +80,7 @@ export const MockTestResultModal: React.FC<MockTestResultModalProps> = ({
             <div className="text-xs font-bold tracking-wider uppercase opacity-80">
               時事・ニュース検定 本番模試判定
             </div>
-            <h3 className="text-2xl sm:text-3xl font-black mt-1">
+            <h3 id="mock-result-title" className="text-2xl sm:text-3xl font-black mt-1">
               {isPassed ? '合格水準クリア 🎯' : '目標ラインまであと少し 🚀'}
             </h3>
             <p className="text-xs mt-1 opacity-90">
@@ -89,21 +94,21 @@ export const MockTestResultModal: React.FC<MockTestResultModalProps> = ({
         {/* 成績サマリー */}
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-            <div className="text-[11px] text-slate-400 font-medium">得点</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">得点</div>
             <div className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
-              {correctCount} <span className="text-xs font-normal text-slate-400">/ {total}問</span>
+              {correctCount} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/ {total}問</span>
             </div>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-            <div className="text-[11px] text-slate-400 font-medium">正答率</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">正答率</div>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">
               {accuracy}%
             </div>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-            <div className="text-[11px] text-slate-400 font-medium">所要時間</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">所要時間</div>
             <div className="text-sm sm:text-base font-bold text-slate-700 dark:text-slate-200 mt-2">
               {formatTime(elapsedSeconds)}
             </div>
@@ -124,7 +129,14 @@ export const MockTestResultModal: React.FC<MockTestResultModalProps> = ({
                     <span>{cat}</span>
                     <span>{stat.correct} / {stat.total}問 ({catAcc}%)</span>
                   </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden"
+                    role="progressbar"
+                    aria-label={`${cat}の正答率`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={catAcc}
+                  >
                     <div 
                       className="bg-indigo-600 h-full rounded-full transition-all duration-500"
                       style={{ width: `${catAcc}%` }}

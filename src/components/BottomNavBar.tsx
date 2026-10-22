@@ -53,6 +53,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              aria-label={tab.label}
+              aria-current={isActive ? 'page' : undefined}
               className={`flex-1 py-1 px-2 flex flex-col items-center justify-center gap-1 transition-all rounded-xl ${
                 isActive
                   ? tab.highlight

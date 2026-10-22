@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProgress } from '../types/quiz';
 import { 
-  exportProgressJson, importProgressJson, resetAllProgress, saveProgress 
+  exportProgressJson, importProgressJson, resetAllProgress, saveProgress, getTodayString
 } from '../utils/storage';
 import { requestNotificationPermission, sendStudyReminder } from '../utils/notification';
 import { 
@@ -106,7 +106,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     e.preventDefault();
     const parsed = parseFirebaseConfig(configInput);
     if (!parsed) {
-      alert('Firebase設定を認識できませんでした。コンソールに表示される firebaseConfig オブジェクトまたはJSONを貼り付けてください。');
+      showSyncMessage('Firebase設定を認識できませんでした。コンソールに表示される firebaseConfig オブジェクトまたはJSONを貼り付けてください。', true);
       return;
     }
 
@@ -131,7 +131,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleGoogleLogin = async () => {
     if (!firebaseConfig) {
       setIsConfigEditing(true);
-      alert('先にGoogle Cloud / Firebaseプロジェクト設定を登録してください。');
+      showSyncMessage('先にGoogle Cloud / Firebaseプロジェクト設定を登録してください。', true);
       return;
     }
 
@@ -208,16 +208,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!progress.notificationEnabled) {
       const granted = await requestNotificationPermission();
       if (granted) {
-        const next = { ...progress, notificationEnabled: true };
+        const next = {
+          ...progress,
+          notificationEnabled: true,
+          // 有効化した日の即時通知と、スケジューラの同日通知を重複させない
+          lastNotificationDate: getTodayString(),
+        };
         saveProgress(next);
         setProgress(next);
+        if (currentUser) saveProgressToCloud(currentUser.uid, next);
         sendStudyReminder('リマインダー通知が有効になりました！毎日学習をサポートします。');
+        showSyncMessage('学習リマインダーをONにしました。指定時刻にアプリ起動中または起動時に通知します。');
+      } else {
+        showSyncMessage('通知が許可されませんでした。ブラウザの通知設定を確認してください。', true);
       }
     } else {
       const next = { ...progress, notificationEnabled: false };
       saveProgress(next);
       setProgress(next);
+      if (currentUser) saveProgressToCloud(currentUser.uid, next);
+      showSyncMessage('学習リマインダーをOFFにしました。');
     }
+  };
+
+  // 通知時刻の変更
+  const handleNotificationTimeChange = (time: string) => {
+    const next = { ...progress, notificationTime: time };
+    saveProgress(next);
+    setProgress(next);
+    if (currentUser) saveProgressToCloud(currentUser.uid, next);
   };
 
   // データエクスポート
@@ -268,7 +287,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       if (currentUser) {
         saveProgressToCloud(currentUser.uid, next);
       }
-      alert('すべてのデータを初期化しました。');
+      showSyncMessage('すべてのデータを初期化しました。');
     }
   };
 
@@ -292,11 +311,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* 同期通知メッセージ */}
       {syncMessage && (
-        <div className={`p-4 rounded-2xl border text-xs sm:text-sm font-medium flex items-center gap-2.5 animate-fadeIn ${
-          syncMessage.isError 
-            ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200' 
-            : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
-        }`}>
+        <div
+          role="status"
+          aria-live="polite"
+          className={`p-4 rounded-2xl border text-xs sm:text-sm font-medium flex items-center gap-2.5 animate-fadeIn ${
+            syncMessage.isError
+              ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200'
+              : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+          }`}
+        >
           {syncMessage.isError ? <AlertCircle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
           <span>{syncMessage.text}</span>
         </div>
@@ -542,18 +565,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <Bell className="w-4 h-4 text-indigo-500" />
           毎日の学習リマインダー
         </h3>
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center justify-between gap-3 pt-1">
           <div>
             <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              プッシュ通知による復習のお知らせ
+              学習リマインダー通知
             </div>
-            <div className="text-[11px] text-slate-400">
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">
               {progress.notificationEnabled ? '毎日の学習習慣化通知が有効です' : '通知をONにすると毎日の継続を応援します'}
             </div>
           </div>
           <button
             onClick={handleNotifyToggle}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+            aria-pressed={progress.notificationEnabled}
+            aria-label={progress.notificationEnabled ? '学習リマインダー通知をOFFにする' : '学習リマインダー通知をONにする'}
+            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
               progress.notificationEnabled
                 ? 'bg-indigo-600 text-white'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
@@ -561,6 +586,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           >
             {progress.notificationEnabled ? '通知 ON ✓' : '通知 OFF'}
           </button>
+        </div>
+
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+          <label htmlFor="notification-time" className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <Bell className="w-3.5 h-3.5 text-indigo-500" aria-hidden="true" />
+            通知時刻
+          </label>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              id="notification-time"
+              type="time"
+              value={progress.notificationTime || '20:00'}
+              onChange={(e) => handleNotificationTimeChange(e.target.value)}
+              disabled={!progress.notificationEnabled}
+              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-100 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              アプリ起動中／起動時に、この時刻を過ぎていれば1日1回通知
+            </span>
+          </div>
         </div>
       </div>
 

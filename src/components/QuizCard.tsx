@@ -23,6 +23,7 @@ interface QuizCardProps {
   onResetProgress?: (quizId: string) => void;
   shuffleEnabled?: boolean;
   onSearchInDictionary?: (keyword: string) => void;
+  onShowToast?: (message: string) => void;
   timerSeconds?: number;
 }
 
@@ -41,6 +42,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
   onResetProgress,
   shuffleEnabled = true,
   onSearchInDictionary,
+  onShowToast,
   timerSeconds,
 }) => {
   // 選択肢シャッフル＆マッピング処理
@@ -160,7 +162,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
 
   const handleSubmit = () => {
     if (selected.length === 0) {
-      alert('少なくとも1つの選択肢を選んでください。');
+      onShowToast?.('少なくとも1つの選択肢を選んでください。');
       return;
     }
 
@@ -262,8 +264,9 @@ export const QuizCard: React.FC<QuizCardProps> = ({
           {onResetProgress && (
             <button
               onClick={() => setShowResetConfirm(true)}
-              className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
               title="この問題の復習進捗をリセット"
+              aria-label="この問題の復習進捗をリセット"
             >
               <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -278,6 +281,8 @@ export const QuizCard: React.FC<QuizCardProps> = ({
                 : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
             }`}
             title="復習用にブックマーク"
+            aria-label={isBookmarked ? 'ブックマークから外す' : 'ブックマークに追加'}
+            aria-pressed={isBookmarked}
           >
             {isBookmarked ? <BookmarkCheck className="w-4 h-4 sm:w-5 sm:h-5 fill-amber-500" /> : <Bookmark className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
@@ -285,7 +290,14 @@ export const QuizCard: React.FC<QuizCardProps> = ({
       </div>
 
       {/* プログレスバー */}
-      <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5">
+      <div
+        className="w-full bg-slate-200 dark:bg-slate-800 h-1.5"
+        role="progressbar"
+        aria-label="セッションの進捗"
+        aria-valuemin={1}
+        aria-valuemax={totalCount}
+        aria-valuenow={currentIndex + 1}
+      >
         <div 
           className="bg-indigo-600 h-1.5 transition-all duration-300"
           style={{ width: `${((currentIndex + 1) / totalCount) * 100}%` }}
@@ -606,12 +618,17 @@ export const QuizCard: React.FC<QuizCardProps> = ({
       {/* リセット確認モーダル */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-sm w-full p-6 space-y-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-progress-title"
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-sm w-full p-6 space-y-4"
+          >
             <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
               <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50">
                 <AlertCircle className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+              <h3 id="reset-progress-title" className="text-base font-bold text-slate-900 dark:text-slate-100">
                 復習進捗のリセット
               </h3>
             </div>

@@ -6,4 +6,31 @@
   body {
     @apply font-sans antialiased;
   }
+
+  /* D-3: キーボード操作時のフォーカスを明確に */
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible,
+  [role="checkbox"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+
+  /* D-3: ライトモードの小さなグレー文字を一段濃くしてコントラストを確保 */
+  html:not(.dark) .text-slate-400 {
+    color: #64748b;
+  }
+}
+
+/* 動きを減らす設定のユーザーに配慮 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
