@@ -221,16 +221,18 @@ export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): Use
     const lList = (local.dailyLogs || {})[date] || [];
     const cList = (cloud.dailyLogs || {})[date] || [];
     // timestamp または quizId+answeredAt でユニーク化
-    const seen = new Set();
-    const combined = [];
+    const byKey = new Map<string, any>();
     for (const item of [...lList, ...cList]) {
       const key = `${item.quizId}_${item.answeredAt}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        combined.push(item);
+      const prev = byKey.get(key);
+      if (!prev) {
+        byKey.set(key, item);
+      } else if (!prev.mode && item.mode) {
+        // 旧ログ（modeなし）より、モード付きのログを優先
+        byKey.set(key, { ...prev, mode: item.mode });
       }
     }
-    mergedDailyLogs[date] = combined;
+    mergedDailyLogs[date] = Array.from(byKey.values());
   });
 
   // 模試履歴のマージ（idでユニーク・新しい順・最大50件）

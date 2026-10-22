@@ -367,6 +367,8 @@ export const App: React.FC = () => {
     }
 
     let resumedSession = session;
+    mockTimeoutHandledRef.current = false;
+    finishingRef.current = false;
     if (session.mode === 'mockTest') {
       const duration = session.mockDurationSeconds ?? 40 * 60;
       const deadline = session.mockDeadline ?? Date.now() + duration * 1000;
@@ -385,8 +387,6 @@ export const App: React.FC = () => {
         }
       }
 
-      mockTimeoutHandledRef.current = false;
-      finishingRef.current = false;
       setMockTimer(remaining);
       setMockElapsedSeconds(elapsed);
     } else {
