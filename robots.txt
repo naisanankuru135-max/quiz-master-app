@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://naisanankuru135-max.github.io/quiz-master-app/sitemap.xml

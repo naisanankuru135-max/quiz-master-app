@@ -1,0 +1,31 @@
+{
+  "name": "超難問クイズマスター - 完全網羅トレーニング",
+  "short_name": "クイズマスター",
+  "description": "政治・経済全論点を完全網羅した超難関クイズ＆忘却曲線学習Webアプリ",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#4f46e5",
+  "background_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
