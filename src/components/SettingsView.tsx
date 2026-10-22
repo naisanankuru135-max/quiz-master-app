@@ -19,7 +19,7 @@ import {
 import { User } from 'firebase/auth';
 import { 
   Moon, Sun, Bell, Download, Upload, RotateCcw, 
-  ExternalLink, Settings,
+  ExternalLink, Settings, Shuffle,
   Sprout, Trees, Lock, Zap,
   Cloud, CheckCircle2, LogIn, LogOut, RefreshCw, KeyRound, ChevronDown, ChevronUp, AlertCircle
 } from 'lucide-react';
@@ -496,6 +496,42 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           >
             {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             {darkMode ? 'ライトに変更' : 'ダークに変更'}
+          </button>
+        </div>
+      </div>
+
+      {/* ④ 演習設定（選択肢シャッフル） */}
+      <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <Shuffle className="w-4 h-4 text-indigo-500" />
+          出題・選択肢のシャッフル
+        </h3>
+        <div className="flex items-center justify-between pt-1">
+          <div>
+            <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              選択肢（A〜D）の並び順を毎回ランダムに入れ替え
+            </div>
+            <div className="text-[11px] text-slate-400">
+              {progress.shuffleOptions !== false ? '有効（場所で覚えるのを防ぎ、真の知識定着を促します）' : '無効（元の固定順序のまま出題します）'}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const current = progress.shuffleOptions !== false;
+              const next = { ...progress, shuffleOptions: !current };
+              saveProgress(next);
+              setProgress(next);
+              if (currentUser) {
+                saveProgressToCloud(currentUser.uid, next);
+              }
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+              progress.shuffleOptions !== false
+                ? 'bg-indigo-600 text-white shadow-indigo-500/20'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            {progress.shuffleOptions !== false ? 'シャッフル ON ✓' : 'シャッフル OFF'}
           </button>
         </div>
       </div>

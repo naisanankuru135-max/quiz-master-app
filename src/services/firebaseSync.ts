@@ -20,7 +20,7 @@ import {
   serverTimestamp,
   Unsubscribe
 } from 'firebase/firestore';
-import { UserProgress } from '../types/quiz';
+import { UserProgress, MockHistoryRecord } from '../types/quiz';
 
 import { DEFAULT_FIREBASE_CONFIG } from '../config/firebaseConfig';
 
@@ -209,6 +209,39 @@ export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): Use
     ? cloud.sessionUpdatedAt 
     : (local.sessionUpdatedAt || cloud.sessionUpdatedAt);
 
+  // 忘却曲線復習ステータスのマージ
+  const mergedSR = { ...(cloud.spacedRepetition || {}), ...(local.spacedRepetition || {}) };
+  // 日別解答ログのマージ
+  const mergedDailyLogs: Record<string, any[]> = {};
+  const allLogDates = new Set([
+    ...Object.keys(local.dailyLogs || {}),
+    ...Object.keys(cloud.dailyLogs || {})
+  ]);
+  allLogDates.forEach(date => {
+    const lList = (local.dailyLogs || {})[date] || [];
+    const cList = (cloud.dailyLogs || {})[date] || [];
+    // timestamp または quizId+answeredAt でユニーク化
+    const seen = new Set();
+    const combined = [];
+    for (const item of [...lList, ...cList]) {
+      const key = `${item.quizId}_${item.answeredAt}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push(item);
+      }
+    }
+    mergedDailyLogs[date] = combined;
+  });
+
+  // 模試履歴のマージ（idでユニーク・新しい順・最大50件）
+  const mockMap = new Map<string, MockHistoryRecord>();
+  for (const item of [...(local.mockHistory || []), ...(cloud.mockHistory || [])]) {
+    mockMap.set(item.id, item);
+  }
+  const mergedMockHistory = Array.from(mockMap.values())
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+    .slice(0, 50);
+
   return {
     history: mergedHistory,
     bookmarks: mergedBookmarks,
@@ -222,6 +255,14 @@ export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): Use
     notificationEnabled: local.notificationEnabled ?? cloud.notificationEnabled ?? false,
     activeSession: mergedActiveSession,
     sessionUpdatedAt: mergedSessionUpdatedAt,
+    spacedRepetition: mergedSR,
+    dailyLogs: mergedDailyLogs,
+    mockHistory: mergedMockHistory,
+    shuffleOptions: local.shuffleOptions ?? cloud.shuffleOptions ?? true,
+    unlockedAchievements: Array.from(new Set([
+      ...(local.unlockedAchievements || []),
+      ...(cloud.unlockedAchievements || [])
+    ])),
   };
 };
 

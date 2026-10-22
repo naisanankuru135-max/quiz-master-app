@@ -1,7 +1,7 @@
 import React from 'react';
-import { BookOpen, BarChart2, Sprout, Settings } from 'lucide-react';
+import { BookOpen, RotateCcw, Search, BarChart2, Sprout } from 'lucide-react';
 
-export type AppTab = 'home' | 'quiz' | 'analytics' | 'ai' | 'settings';
+export type AppTab = 'home' | 'review' | 'dictionary' | 'quiz' | 'analytics' | 'ai' | 'settings';
 
 interface BottomNavBarProps {
   activeTab: AppTab;
@@ -12,11 +12,22 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   activeTab,
   setActiveTab,
 }) => {
+  // ボトムナビは主要5タブに厳選（設定は画面右上に配置してUIをスッキリ整理）
   const tabs = [
     {
       id: 'home' as const,
-      label: '特訓モード',
+      label: '特訓',
       icon: BookOpen,
+    },
+    {
+      id: 'review' as const,
+      label: '復習',
+      icon: RotateCcw,
+    },
+    {
+      id: 'dictionary' as const,
+      label: '辞書',
+      icon: Search,
     },
     {
       id: 'analytics' as const,
@@ -25,14 +36,9 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
     },
     {
       id: 'ai' as const,
-      label: '🌱 AI相談',
+      label: 'AI相談',
       icon: Sprout,
       highlight: true,
-    },
-    {
-      id: 'settings' as const,
-      label: '設定',
-      icon: Settings,
     },
   ];
 

@@ -45,6 +45,54 @@ export interface ResumeSession {
   currentIndex: number;
   answers: Record<string, ('A' | 'B' | 'C' | 'D')[]>;
   timestamp: string;
+  /** 模試の終了時刻（epoch ms）。再開・リロードしても残り時間を維持する */
+  mockDeadline?: number;
+  /** 模試の制限時間（秒） */
+  mockDurationSeconds?: number;
+}
+
+export interface SpacedRepetitionItem {
+  quizId: string;
+  firstAnsweredDate: string; // YYYY-MM-DD
+  currentStage: 1 | 2 | 3 | 4 | 5 | 'completed'; // 1: 1日後, 2: 3日後, 3: 1週後, 4: 2週後, 5: 1ヶ月後, completed: 完全習得
+  lastAnsweredDate: string;  // YYYY-MM-DD（直近で解いた日）
+  nextReviewDate: string;    // YYYY-MM-DD（この日以降に出現）
+  stageHistory: Array<{
+    stage: number;
+    answeredDate: string;
+    isFullyCorrect: boolean;
+  }>;
+}
+
+export interface DailyLogRecord {
+  quizId: string;
+  category: string;
+  isFullyCorrect: boolean;
+  answeredAt: string; // ISO string
+  stage?: number | 'completed' | 'initial';
+  mode?: QuizMode; // 目標カウントから模試を除外するために使用
+}
+
+export interface MockHistoryRecord {
+  id: string;
+  completedAt: string; // ISO string
+  date: string; // YYYY-MM-DD
+  score: number;
+  total: number;
+  accuracy: number; // 0-100
+  elapsedSeconds: number;
+  passed: boolean;
+  categoryStats: Record<string, { correct: number; total: number }>;
+  incorrectIds: string[];
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string; // 絵文字
+  category: 'streak' | 'count' | 'mastery' | 'special';
+  target: number;
 }
 
 export interface UserProgress {
@@ -60,12 +108,30 @@ export interface UserProgress {
   sessionUpdatedAt?: string; // セッションの開始/更新/破棄日時（端末間同期用）
   notificationTime: string; // e.g. "20:00"
   notificationEnabled: boolean;
+  spacedRepetition: Record<string, SpacedRepetitionItem>; // 忘却曲線復習ステータス
+  dailyLogs: Record<string, DailyLogRecord[]>; // 日別解答履歴 (YYYY-MM-DD -> records)
+  mockHistory?: MockHistoryRecord[]; // 本番模試の結果履歴（新しい順）
+  shuffleOptions?: boolean; // 選択肢のシャッフル設定（デフォルト true）
+  unlockedAchievements?: string[]; // 解除済みアチーブメントID配列
+}
+
+export interface FactItem {
+  id: string;
+  category: string;
+  sourceFile: string;
+  section: string;
+  factText: string;
+  charCount?: number;
 }
 
 export type QuizMode = 
-  | 'daily30'      // 今日の30問
-  | 'unattempted'  // 未踏ランダム
-  | 'mockTest'     // 実力テスト
-  | 'reviewWeak'   // 苦手克服
-  | 'category'     // カテゴリ別
+  | 'daily30'          // 今日の30問
+  | 'unattempted'      // 未踏ランダム
+  | 'mockTest'         // 実力テスト
+  | 'reviewWeak'       // 苦手克服
+  | 'category'         // カテゴリ別
+  | 'spacedRepetition' // 忘却曲線復習
+  | 'dailyHistory'     // 日別履歴の再演習
+  | 'dictionarySearch' // 辞書からの演習
+  | 'bookmark'         // ブックマーク演習
 ;

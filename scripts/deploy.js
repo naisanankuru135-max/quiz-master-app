@@ -44,7 +44,7 @@ async function main() {
   run('git config user.email "naisanankuru135-max@users.noreply.github.com"', DIST_DIR);
   run('git checkout -B gh-pages', DIST_DIR);
   run('git add -A', DIST_DIR);
-  run(`git commit -m "Deploy to GitHub Pages: ${new Date().toISOString()}"`, DIST_DIR);
+  run(`git commit --allow-empty -m "Deploy to GitHub Pages: ${new Date().toISOString()}"`, DIST_DIR);
   run(`git push "${remoteUrl}" gh-pages --force`, DIST_DIR);
   console.log('✓ gh-pages ブランチへのプッシュ成功！');
 

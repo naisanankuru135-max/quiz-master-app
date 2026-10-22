@@ -61,7 +61,8 @@ function collectFiles(dir, base = '') {
       entry.name === 'dist' || 
       entry.name === '.git' || 
       entry.name.startsWith('.env') ||
-      entry.name.endsWith('.log')
+      entry.name.endsWith('.log') ||
+      entry.name.toLowerCase().endsWith('.pdf')
     ) {
       continue;
     }
@@ -178,7 +179,7 @@ async function main() {
 
   // 6. コミット作成
   console.log('📝 コミットを作成中...');
-  const commitMessage = `Update quiz master: 289 questions, 100% covered, mobile responsive UI [${new Date().toISOString()}]`;
+  const commitMessage = `Update quiz master: 307 questions, 100% covered, mobile responsive UI [${new Date().toISOString()}]`;
   const commitPayload = {
     message: commitMessage,
     tree: treeSha,
@@ -227,28 +228,31 @@ async function main() {
   }
   console.log('✓ mainブランチへのプッシュ成功！');
 
-  // 8. GitHub Pages の有効化（build_type: workflow）
+  // 8. GitHub Pages の有効化（gh-pages ブランチ配信）
   console.log('🌐 GitHub Pages の設定を確認・有効化中...');
+  const pagesPayload = {
+    build_type: 'legacy',
+    source: {
+      branch: 'gh-pages',
+      path: '/',
+    },
+  };
   const pagesRes = await api(`/repos/${username}/${REPO_NAME}/pages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      build_type: 'workflow',
-    }),
+    body: JSON.stringify(pagesPayload),
   });
 
   if (pagesRes.ok) {
-    console.log('✓ GitHub Pages（GitHub Actionsデプロイ）を有効化しました！');
+    console.log('✓ GitHub Pages（gh-pagesブランチ配信）を有効化しました！');
   } else if (pagesRes.status === 409 || pagesRes.status === 400) {
     // 既に設定されている場合はPUTで更新
     await api(`/repos/${username}/${REPO_NAME}/pages`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        build_type: 'workflow',
-      }),
+      body: JSON.stringify(pagesPayload),
     });
-    console.log('✓ GitHub Pagesの設定をGitHub Actions方式に更新しました！');
+    console.log('✓ GitHub Pagesの設定をgh-pagesブランチ配信方式に更新しました！');
   }
 
   const pagesUrl = `https://${username}.github.io/${REPO_NAME}/`;
