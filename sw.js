@@ -1,5 +1,5 @@
 // Service Worker for Offline Quiz Master PWA
-const CACHE_NAME = 'quiz-master-cache-v2';
+const CACHE_NAME = 'quiz-master-cache-v3';
 
 const STATIC_ASSETS = [
   './',
