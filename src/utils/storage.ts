@@ -2,12 +2,15 @@ import { UserProgress, AnswerRecord, ResumeSession, QuizMode, MockHistoryRecord 
 
 const STORAGE_KEY = 'quiz_master_progress_v1';
 
-export function getTodayString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+function toLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function getTodayString(): string {
+  return toLocalDateString(new Date());
 }
 
 export function addDays(dateStr: string, days: number): string {
@@ -58,7 +61,11 @@ export function loadProgress(): UserProgress {
     // 既存の履歴データ（history）からの初期マイグレーション（未登録なら自動登録）
     if (Object.keys(data.spacedRepetition).length === 0 && Object.keys(data.history).length > 0) {
       Object.values(data.history).forEach(h => {
-        const ansDate = h.answeredAt.split('T')[0] || getTodayString();
+        const answeredAt = new Date(h.answeredAt);
+        // UTC の日付文字列ではなく、ユーザーのローカル日付で移行する
+        const ansDate = Number.isNaN(answeredAt.getTime())
+          ? getTodayString()
+          : toLocalDateString(answeredAt);
         data.spacedRepetition[h.quizId] = {
           quizId: h.quizId,
           firstAnsweredDate: ansDate,

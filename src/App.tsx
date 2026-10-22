@@ -421,7 +421,7 @@ export const App: React.FC = () => {
     const currentQuiz = activeQuizList.find(q => q.id === quizId);
     if (!currentQuiz) return;
 
-    const updatedProgress = recordAnswer(
+    let updatedProgress = recordAnswer(
       quizId,
       currentQuiz.category,
       selected,
@@ -430,6 +430,9 @@ export const App: React.FC = () => {
     );
 
     // セッションの保存
+    // ※ recordAnswer が返す progress は「解答保存前」の activeSession を持っている。
+    //   そのまま後段で saveProgress すると、下で保存した answers が巻き戻るため、
+    //   saveActiveSession の戻り値で progress を置き換える。
     if (currentSession) {
       const nextSession: ResumeSession = {
         ...currentSession,
@@ -440,7 +443,7 @@ export const App: React.FC = () => {
         },
         timestamp: new Date().toISOString(),
       };
-      saveActiveSession(nextSession);
+      updatedProgress = saveActiveSession(nextSession);
       setCurrentSession(nextSession);
     }
 
@@ -783,7 +786,10 @@ export const App: React.FC = () => {
           allQuizzes={ALL_QUIZZES}
           answers={completedMockData.answers}
           elapsedSeconds={completedMockData.elapsed}
-          onClose={() => setCompletedMockData(null)}
+          onClose={() => {
+            setCompletedMockData(null);
+            setActiveTab('analytics');
+          }}
           onRetry={() => {
             setCompletedMockData(null);
             handleStartMode('mockTest', undefined, 40);
