@@ -5,6 +5,8 @@ import { requestNotificationPermission, sendStudyReminder } from '../utils/notif
 import { AppTab } from './BottomNavBar';
 import { User } from 'firebase/auth';
 import { getTodayStudyCount } from '../utils/storage';
+import { ALL_QUIZZES } from '../data/quizzes';
+import { ALL_FACTS } from '../data/facts';
 
 interface HeaderProps {
   progress: UserProgress;
@@ -70,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
                 PRO
               </span>
             </h1>
-            <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400">厳選307問（全607ファクト網羅）</p>
+            <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400">厳選{ALL_QUIZZES.length}問（全{ALL_FACTS.length}ファクト網羅）</p>
           </div>
         </a>
 

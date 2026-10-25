@@ -39,7 +39,7 @@ export function shuffleWithSeed<T>(array: T[], seed: number): T[] {
  * - 未学習問題（約15問優先）
  * - 復習期日到来または直近誤答問題（約10問）
  * - その他（約5問）
- * ※ 政治・経済の分野比率も均等になるよう配分
+ * ※ 政治・経済・暮らしの分野比率も均等になるよう配分
  */
 export function getDailyThirtyQuizzes(
   allQuizzes: QuizQuestion[],

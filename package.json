@@ -9,7 +9,12 @@
     "preview": "vite preview",
     "deploy": "node scripts/deploy.js",
     "publish": "node scripts/sync_to_github.js",
-    "generate-quizzes": "node scripts/generate_quizzes.mjs"
+    "generate-quizzes": "node scripts/generate_quizzes.mjs",
+    "generate-liv": "node scripts/generate_liv_quizzes.cjs",
+    "generate-liv-all": "node scripts/generate_all_liv_sections.cjs",
+    "merge-liv": "node scripts/merge_liv_quizzes.cjs",
+    "merge-liv-full": "node scripts/merge_liv_quizzes.cjs --require-full",
+    "validate-liv": "node scripts/validate_livelihood.cjs"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

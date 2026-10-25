@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProgress } from '../types/quiz';
+import { ALL_FACTS } from '../data/facts';
 import { 
   exportProgressJson, importProgressJson, resetAllProgress, saveProgress, getTodayString
 } from '../utils/storage';
@@ -680,7 +681,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>最新時事ニュースの網羅性</span>
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-              リアルタイムWeb検索と連動しており、法改正や最新の政治・経済の動向、用語の対立軸も鮮度の高い情報で詳しく答えてくれます。
+              リアルタイムWeb検索と連動しており、法改正や最新の政治・経済・暮らしの動向、用語の対立軸も鮮度の高い情報で詳しく答えてくれます。
             </p>
           </div>
         </div>
@@ -749,7 +750,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </span>
         </div>
         <p className="text-[11px]">
-          総問題数: {totalQuizzesCount}問 ｜ 政治・経済 全607論点 100% 完全網羅
+          総問題数: {totalQuizzesCount}問 ｜ 政治・経済・暮らし 全{ALL_FACTS.length}論点 100% 完全網羅
         </p>
         <p className="text-[10px] opacity-75">
           Google Cloud (Firebase Firestore) 自動同期 ＆ PWA 対応

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { QuizQuestion, UserProgress } from '../types/quiz';
-import { ALL_FACTS } from '../data/facts';
+import { ALL_FACTS, ALL_FACT_CATEGORIES } from '../data/facts';
 import { 
   Search, BookOpen, ExternalLink, Play, 
   X, Sparkles, Tag
@@ -244,7 +244,7 @@ export const DictionaryView: React.FC<DictionaryViewProps> = ({
           {/* カテゴリ切替 */}
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold text-slate-400 dark:text-slate-500 mr-1">分野:</span>
-            {['all', '政治', '経済'].map(cat => (
+            {['all', ...ALL_FACT_CATEGORIES].map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}

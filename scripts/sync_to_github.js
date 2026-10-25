@@ -179,7 +179,7 @@ async function main() {
 
   // 6. コミット作成
   console.log('📝 コミットを作成中...');
-  const commitMessage = `Update quiz master: 307 questions, 100% covered, mobile responsive UI [${new Date().toISOString()}]`;
+  const commitMessage = `Update quiz master: 435 questions (858 facts), 100% covered, mobile responsive UI [${new Date().toISOString()}]`;
   const commitPayload = {
     message: commitMessage,
     tree: treeSha,

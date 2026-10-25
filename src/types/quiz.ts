@@ -128,6 +128,12 @@ export interface FactItem {
   section: string;
   factText: string;
   charCount?: number;
+  /** ファクト単体の話題ラベル（例: 年収の壁、国民年金の被保険者） */
+  topic?: string;
+  /** 元MDの該当行テキスト（監査・再生成用） */
+  sourceText?: string;
+  /** 元MDの行番号（1始まり） */
+  sourceLines?: number[];
 }
 
 export type QuizMode = 
