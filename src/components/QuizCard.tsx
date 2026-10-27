@@ -6,7 +6,12 @@ import {
   ArrowRight, ArrowLeft, Sparkles, HelpCircle, Save,
   Sprout, ExternalLink, CheckCircle2, RotateCcw, AlertCircle, Keyboard, Search
 } from 'lucide-react';
-import { formatQuizPromptForEcosia, openEcosiaAiWithPrompt } from '../utils/ecosiaAi';
+import { 
+  formatQuizPromptForEcosia, 
+  openEcosiaAiWithPermalink,
+  normalizeSelectedOptions
+} from '../utils/ecosiaAi';
+import { getQuizNumberInfo } from '../utils/quizPermalinkHelper';
 
 interface QuizCardProps {
   quiz: QuizQuestion;
@@ -134,9 +139,18 @@ export const QuizCard: React.FC<QuizCardProps> = ({
   }, []);
 
   const handleOpenEcosia = () => {
-    // 表示中のdisplayQuizと画面で選択されたキーを渡すことで、Ecosia AIプロンプトの矛盾を100%防止！
-    const prompt = formatQuizPromptForEcosia(displayQuiz, [...selected].sort());
-    openEcosiaAiWithPrompt(prompt);
+    // 画面上でシャッフルされた選択肢キーを、元データのキー（A〜D）に正規化
+    const normalizedSelected = normalizeSelectedOptions(displayQuiz, [...selected].sort(), quiz);
+    const { sequentialNumber, categoryNumber } = getQuizNumberInfo(quiz.id);
+    const fullFallbackPrompt = formatQuizPromptForEcosia(displayQuiz, [...selected].sort());
+
+    openEcosiaAiWithPermalink(
+      quiz,
+      sequentialNumber,
+      categoryNumber,
+      normalizedSelected,
+      fullFallbackPrompt
+    );
     setEcosiaNotice(true);
     setTimeout(() => setEcosiaNotice(false), 5000);
   };

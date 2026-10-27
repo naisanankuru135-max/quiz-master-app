@@ -11,6 +11,7 @@ export interface QuizQuestion {
   question: string;
   options: QuizOption[];
   correctAnswers: ('A' | 'B' | 'C' | 'D')[];
+  coveredFactIds?: string[];
   explanations: {
     overall: string;
     details: {

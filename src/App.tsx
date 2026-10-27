@@ -43,6 +43,10 @@ const SettingsView = lazy(() =>
 const MockTestResultModal = lazy(() =>
   import('./components/MockTestResultModal').then(m => ({ default: m.MockTestResultModal }))
 );
+const QuizPermalinkView = lazy(() =>
+  import('./components/QuizPermalinkView').then(m => ({ default: m.QuizPermalinkView }))
+);
+import { FACT_MAP, findQuizByParam } from './utils/quizPermalinkHelper';
 
 export const App: React.FC = () => {
   const [progress, setProgress] = useState<UserProgress>(loadProgress());
@@ -55,6 +59,33 @@ export const App: React.FC = () => {
   const [achievementToast, setAchievementToast] = useState<Achievement | null>(null);
   const [dictionaryKeyword, setDictionaryKeyword] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // 個別パーマリンク表示判定（?q=1 や ?quizId=politics-001）
+  const [permalinkTarget, setPermalinkTarget] = useState<null | {
+    quiz: QuizQuestion;
+    sequentialNumber: number;
+    categoryNumber: number;
+    userAnswers?: ('A' | 'B' | 'C' | 'D')[];
+  }>(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const qParam = params.get('q') || params.get('quizId');
+    if (!qParam) return null;
+    const target = findQuizByParam(qParam);
+    if (!target) return null;
+    const userAnsParam = params.get('userAns');
+    const userAnswers = userAnsParam
+      ? (userAnsParam.split(',').filter(a => ['A', 'B', 'C', 'D'].includes(a)) as ('A' | 'B' | 'C' | 'D')[])
+      : undefined;
+    return { ...target, userAnswers };
+  });
+
+  const handleExitPermalink = () => {
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.pushState({}, '', cleanUrl);
+    setPermalinkTarget(null);
+    setActiveTab('home');
+  };
 
   // 模試タイマー＆結果用ステート
   const [mockTimer, setMockTimer] = useState<number | null>(null);
@@ -776,6 +807,22 @@ export const App: React.FC = () => {
       });
     }
   };
+
+  // 個別パーマリンク閲覧モードのレンダリング
+  if (permalinkTarget) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm font-bold text-slate-500">読み込み中...</div>}>
+        <QuizPermalinkView
+          quiz={permalinkTarget.quiz}
+          quizSequentialNumber={permalinkTarget.sequentialNumber}
+          categoryQuestionNumber={permalinkTarget.categoryNumber}
+          userAnswers={permalinkTarget.userAnswers}
+          factMap={FACT_MAP}
+          onGoToApp={handleExitPermalink}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
