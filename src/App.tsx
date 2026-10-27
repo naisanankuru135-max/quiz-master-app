@@ -5,7 +5,7 @@ import {
   loadProgress, recordAnswer, saveActiveSession, 
   clearActiveSession, toggleBookmark, saveProgress,
   resetSpacedRepetition, getTodayString, getTodayStudyCount,
-  addMockHistory, isAnswerFullyCorrect
+  addMockHistory, isAnswerFullyCorrect, cleanOrphanProgress
 } from './utils/storage';
 import { getDailyThirtyQuizzes } from './utils/prng';
 import { sendStudyReminder } from './utils/notification';
@@ -265,6 +265,16 @@ export const App: React.FC = () => {
       unsubscribeAuth();
       if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
+  }, []);
+
+  // 起動時：問題データ再生成に伴う旧問題（孤立ID）の自動整合性クリーンアップ
+  useEffect(() => {
+    const validIds = ALL_QUIZZES.map(q => q.id);
+    const { cleanedCount, progress: updated } = cleanOrphanProgress(validIds);
+    if (cleanedCount > 0) {
+      setProgress(updated);
+      console.log(`[Storage] Cleaned ${cleanedCount} orphaned quiz progress items.`);
+    }
   }, []);
 
   // ダークモードクラス適用
@@ -720,6 +730,23 @@ export const App: React.FC = () => {
     setToastMessage('この問題の復習進捗をリセットしました。');
   };
 
+  // データ更新に伴う旧問題（孤立ID）の一括クリーンアップハンドラー
+  const handleCleanOrphanData = () => {
+    const validIds = ALL_QUIZZES.map(q => q.id);
+    const { cleanedCount, progress: updated } = cleanOrphanProgress(validIds);
+    setProgress(updated);
+    if (currentUser) {
+      saveProgressToCloud(currentUser.uid, updated).catch(err => {
+        console.error('Clean orphan progress cloud save error:', err);
+      });
+    }
+    if (cleanedCount > 0) {
+      setToastMessage(`データ更新に伴う旧問題データ（${cleanedCount}件）を正常に整理しました。`);
+    } else {
+      setToastMessage('整理対象の旧問題データはありませんでした。');
+    }
+  };
+
   // ブックマーク切替
   const handleToggleBookmark = (quizId: string) => {
     toggleBookmark(quizId);
@@ -817,6 +844,7 @@ export const App: React.FC = () => {
             allQuizzes={ALL_QUIZZES}
             onStartReviewSession={handleStartReviewSession}
             onResetQuizProgress={handleResetQuizProgress}
+            onCleanOrphanData={handleCleanOrphanData}
           />
         )}
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { QuizQuestion, UserProgress, SpacedRepetitionItem } from '../types/quiz';
 import { 
   Clock, Calendar, Award, ChevronRight, 
-  RotateCcw, Play, X, ArrowRight
+  RotateCcw, Play, X, ArrowRight, AlertCircle
 } from 'lucide-react';
 import { getTodayString } from '../utils/storage';
 
@@ -11,6 +11,7 @@ interface ReviewWorkspaceViewProps {
   allQuizzes: QuizQuestion[];
   onStartReviewSession: (quizIds: string[], sessionTitle: string) => void;
   onResetQuizProgress: (quizId: string) => void;
+  onCleanOrphanData?: () => void;
 }
 
 // 忘却曲線の5ステージ定義
@@ -72,6 +73,7 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
   allQuizzes,
   onStartReviewSession,
   onResetQuizProgress,
+  onCleanOrphanData,
 }) => {
   const today = getTodayString();
   const quizMap = new Map<string, QuizQuestion>();
@@ -82,8 +84,19 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
   // 完全習得アコーディオン開閉
   const [showCompletedList, setShowCompletedList] = useState<boolean>(false);
 
-  // 忘却曲線アイテム一覧
-  const srItems = Object.values(progress.spacedRepetition || {});
+  // 忘却曲線アイテム一覧（全件 & 実体が存在する有効アイテムのみ抽出）
+  const rawSrItems = Object.values(progress.spacedRepetition || {});
+  const orphanItems = rawSrItems.filter(item => !quizMap.has(item.quizId));
+  const orphanCount = orphanItems.length;
+  const srItems = rawSrItems.filter(item => quizMap.has(item.quizId));
+
+  const handleCleanOrphanData = () => {
+    if (onCleanOrphanData) {
+      onCleanOrphanData();
+    } else {
+      orphanItems.forEach(item => onResetQuizProgress(item.quizId));
+    }
+  };
 
   // 日付フォーマット補助 (2026-05-03 -> 5/3)
   const formatShortDate = (dateStr: string) => {
@@ -99,7 +112,11 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
   const getStageGroups = (stageNum: 1 | 2 | 3 | 4 | 5) => {
     // 該当ステージで、かつ今日時点で復習期日を迎えているもの (nextReviewDate <= today)
     const dueItems = srItems.filter(
-      item => item.currentStage === stageNum && item.nextReviewDate && item.nextReviewDate <= today
+      item =>
+        quizMap.has(item.quizId) &&
+        item.currentStage === stageNum &&
+        item.nextReviewDate &&
+        item.nextReviewDate <= today
     );
 
     // firstAnsweredDate でグルーピング（自動分割仕様）
@@ -121,10 +138,13 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
   };
 
   // 完全習得（completed）アイテム
-  const completedItems = srItems.filter(item => item.currentStage === 'completed');
+  const completedItems = srItems.filter(
+    item => quizMap.has(item.quizId) && item.currentStage === 'completed'
+  );
 
   // 本日復習期日を迎えている全アイテム（全ステージ一括用）
   const allDueItems = srItems.filter(item => 
+    quizMap.has(item.quizId) &&
     item.currentStage !== 'completed' &&
     item.nextReviewDate &&
     item.nextReviewDate <= today
@@ -141,7 +161,9 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
     );
   });
   const allDueQuizIds = sortedDueItems.map(item => item.quizId);
-  const weakCount = Object.values(progress.history || {}).filter(h => !h.isFullyCorrect).length;
+  const weakCount = Object.values(progress.history || {}).filter(
+    h => quizMap.has(h.quizId) && !h.isFullyCorrect
+  ).length;
 
   const startReviewChunk = (count: number) => {
     onStartReviewSession(
@@ -159,6 +181,24 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
   return (
     <div className="space-y-8 animate-fadeIn">
       
+      {/* 旧問題（孤立ID）クリーンアップ案内バナー */}
+      {orphanCount > 0 && (
+        <div className="px-4 py-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm text-amber-800 dark:text-amber-200 font-medium">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              データ更新に伴う旧問題の復習データが <strong className="font-black">{orphanCount}件</strong> あります
+            </span>
+          </div>
+          <button
+            onClick={handleCleanOrphanData}
+            className="self-end sm:self-auto px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
+          >
+            今すぐ整理する
+          </button>
+        </div>
+      )}
+
       {/* 1. 復習おすすめ機能領域（エビングハウスの忘却曲線レコメンド） */}
       <section className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
         
@@ -607,16 +647,19 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
               </button>
               {(() => {
                 const records = dailyLogsMap[selectedHistoryDate] || [];
-                const uniqueQuizIds = Array.from(new Set(records.map(r => r.quizId)));
+                const uniqueQuizIds = Array.from(
+                  new Set(records.map(r => r.quizId).filter(id => quizMap.has(id)))
+                );
 
                 return (
                   <button
+                    disabled={uniqueQuizIds.length === 0}
                     onClick={() => {
                       const d = selectedHistoryDate;
                       setSelectedHistoryDate(null);
                       onStartReviewSession(uniqueQuizIds, `${formatShortDate(d)} の問題を再演習`);
                     }}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 disabled:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98] disabled:hover:scale-100"
                   >
                     <span>この日の問題をもう一度解く ({uniqueQuizIds.length}問)</span>
                     <ArrowRight className="w-4 h-4" />

@@ -350,6 +350,47 @@ export function resetSpacedRepetition(quizId: string): UserProgress {
   return progress;
 }
 
+export function cleanOrphanProgress(validQuizIds: string[]): { cleanedCount: number; progress: UserProgress } {
+  const progress = loadProgress();
+  const validSet = new Set(validQuizIds);
+  const removedIds = new Set<string>();
+
+  if (progress.spacedRepetition) {
+    for (const id of Object.keys(progress.spacedRepetition)) {
+      if (!validSet.has(id)) {
+        delete progress.spacedRepetition[id];
+        removedIds.add(id);
+      }
+    }
+  }
+
+  if (progress.history) {
+    for (const id of Object.keys(progress.history)) {
+      if (!validSet.has(id)) {
+        delete progress.history[id];
+        removedIds.add(id);
+      }
+    }
+  }
+
+  if (Array.isArray(progress.bookmarks)) {
+    progress.bookmarks = progress.bookmarks.filter(id => {
+      if (!validSet.has(id)) {
+        removedIds.add(id);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  const cleanedCount = removedIds.size;
+  if (cleanedCount > 0) {
+    saveProgress(progress);
+  }
+
+  return { cleanedCount, progress };
+}
+
 export function saveActiveSession(
   session: ResumeSession,
   base?: UserProgress,
