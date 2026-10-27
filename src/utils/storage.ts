@@ -1,4 +1,4 @@
-import { UserProgress, AnswerRecord, ResumeSession, QuizMode, MockHistoryRecord } from '../types/quiz';
+import { UserProgress, AnswerRecord, ResumeSession, QuizMode, MockHistoryRecord, SpacedRepetitionItem } from '../types/quiz';
 
 const STORAGE_KEY = 'quiz_master_progress_v1';
 
@@ -350,45 +350,59 @@ export function resetSpacedRepetition(quizId: string): UserProgress {
   return progress;
 }
 
-export function cleanOrphanProgress(validQuizIds: string[]): { cleanedCount: number; progress: UserProgress } {
-  const progress = loadProgress();
+export function cleanOrphanProgress(
+  validQuizIds: string[],
+  base?: UserProgress
+): { cleanedCount: number; progress: UserProgress } {
+  const source = base ? JSON.parse(JSON.stringify(base)) : loadProgress();
   const validSet = new Set(validQuizIds);
   const removedIds = new Set<string>();
 
-  if (progress.spacedRepetition) {
-    for (const id of Object.keys(progress.spacedRepetition)) {
-      if (!validSet.has(id)) {
-        delete progress.spacedRepetition[id];
+  const nextSR: Record<string, SpacedRepetitionItem> = {};
+  if (source.spacedRepetition) {
+    for (const [id, item] of Object.entries(source.spacedRepetition as Record<string, SpacedRepetitionItem>)) {
+      if (validSet.has(id)) {
+        nextSR[id] = item;
+      } else {
         removedIds.add(id);
       }
     }
   }
 
-  if (progress.history) {
-    for (const id of Object.keys(progress.history)) {
-      if (!validSet.has(id)) {
-        delete progress.history[id];
+  const nextHistory: Record<string, AnswerRecord> = {};
+  if (source.history) {
+    for (const [id, item] of Object.entries(source.history as Record<string, AnswerRecord>)) {
+      if (validSet.has(id)) {
+        nextHistory[id] = item;
+      } else {
         removedIds.add(id);
       }
     }
   }
 
-  if (Array.isArray(progress.bookmarks)) {
-    progress.bookmarks = progress.bookmarks.filter(id => {
-      if (!validSet.has(id)) {
-        removedIds.add(id);
-        return false;
-      }
-      return true;
-    });
-  }
+  const nextBookmarks = Array.isArray(source.bookmarks)
+    ? source.bookmarks.filter((id: string) => {
+        if (!validSet.has(id)) {
+          removedIds.add(id);
+          return false;
+        }
+        return true;
+      })
+    : [];
+
+  const updatedProgress: UserProgress = {
+    ...source,
+    spacedRepetition: nextSR,
+    history: nextHistory,
+    bookmarks: nextBookmarks,
+  };
 
   const cleanedCount = removedIds.size;
-  if (cleanedCount > 0) {
-    saveProgress(progress);
+  if (cleanedCount > 0 || !base) {
+    saveProgress(updatedProgress);
   }
 
-  return { cleanedCount, progress };
+  return { cleanedCount, progress: updatedProgress };
 }
 
 export function saveActiveSession(

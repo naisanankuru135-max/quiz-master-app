@@ -83,6 +83,8 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
   // 完全習得アコーディオン開閉
   const [showCompletedList, setShowCompletedList] = useState<boolean>(false);
+  // クリーンアップ処理中ステート
+  const [isCleaning, setIsCleaning] = useState<boolean>(false);
 
   // 忘却曲線アイテム一覧（全件 & 実体が存在する有効アイテムのみ抽出）
   const rawSrItems = Object.values(progress.spacedRepetition || {});
@@ -90,11 +92,17 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
   const orphanCount = orphanItems.length;
   const srItems = rawSrItems.filter(item => quizMap.has(item.quizId));
 
-  const handleCleanOrphanData = () => {
-    if (onCleanOrphanData) {
-      onCleanOrphanData();
-    } else {
-      orphanItems.forEach(item => onResetQuizProgress(item.quizId));
+  const handleCleanOrphanData = async () => {
+    if (isCleaning) return;
+    setIsCleaning(true);
+    try {
+      if (onCleanOrphanData) {
+        await onCleanOrphanData();
+      } else {
+        orphanItems.forEach(item => onResetQuizProgress(item.quizId));
+      }
+    } finally {
+      setIsCleaning(false);
     }
   };
 
@@ -192,9 +200,10 @@ export const ReviewWorkspaceView: React.FC<ReviewWorkspaceViewProps> = ({
           </div>
           <button
             onClick={handleCleanOrphanData}
-            className="self-end sm:self-auto px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
+            disabled={isCleaning}
+            className="self-end sm:self-auto px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0 disabled:opacity-50 disabled:pointer-events-none"
           >
-            今すぐ整理する
+            {isCleaning ? '整理中...' : '今すぐ整理する'}
           </button>
         </div>
       )}

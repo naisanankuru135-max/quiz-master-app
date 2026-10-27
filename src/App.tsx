@@ -266,10 +266,11 @@ export const App: React.FC = () => {
       if (user) {
         try {
           // 初回フェッチ & マージ
+          const validIds = ALL_QUIZZES.map(q => q.id);
           const cloudProgress = await fetchProgressFromCloud(user.uid);
           if (cloudProgress) {
             const currentLocal = loadProgress();
-            const merged = mergeUserProgress(currentLocal, cloudProgress);
+            const merged = mergeUserProgress(currentLocal, cloudProgress, validIds);
             saveProgress(merged);
             setProgress(merged);
             setCurrentSession(merged.activeSession);
@@ -281,7 +282,7 @@ export const App: React.FC = () => {
           // リアルタイムリスナー開始（別端末での中断・進捗の更新を即時キャッチ）
           unsubscribeSnapshot = subscribeToCloudProgress(user.uid, (cloudProgress) => {
             const currentLocal = loadProgress();
-            const merged = mergeUserProgress(currentLocal, cloudProgress);
+            const merged = mergeUserProgress(currentLocal, cloudProgress, validIds);
             saveProgress(merged);
             setProgress(merged);
             setCurrentSession(merged.activeSession);
@@ -762,14 +763,16 @@ export const App: React.FC = () => {
   };
 
   // データ更新に伴う旧問題（孤立ID）の一括クリーンアップハンドラー
-  const handleCleanOrphanData = () => {
+  const handleCleanOrphanData = async () => {
     const validIds = ALL_QUIZZES.map(q => q.id);
-    const { cleanedCount, progress: updated } = cleanOrphanProgress(validIds);
+    const { cleanedCount, progress: updated } = cleanOrphanProgress(validIds, progress);
     setProgress(updated);
     if (currentUser) {
-      saveProgressToCloud(currentUser.uid, updated).catch(err => {
+      try {
+        await saveProgressToCloud(currentUser.uid, updated);
+      } catch (err) {
         console.error('Clean orphan progress cloud save error:', err);
-      });
+      }
     }
     if (cleanedCount > 0) {
       setToastMessage(`データ更新に伴う旧問題データ（${cleanedCount}件）を正常に整理しました。`);

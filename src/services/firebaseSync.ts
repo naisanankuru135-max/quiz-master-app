@@ -148,7 +148,11 @@ export const onAuthStatusChange = (callback: (user: User | null) => void): (() =
 /**
  * ローカル進捗とクラウド進捗を賢くマージする
  */
-export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): UserProgress => {
+export const mergeUserProgress = (
+  local: UserProgress,
+  cloud: UserProgress,
+  validQuizIds?: string[]
+): UserProgress => {
   // 1. 解答履歴のマージ（最新の解答日時または完全正解を優先）
   const mergedHistory = { ...cloud.history };
   for (const [quizId, localRecord] of Object.entries(local.history)) {
@@ -211,6 +215,27 @@ export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): Use
 
   // 忘却曲線復習ステータスのマージ
   const mergedSR = { ...(cloud.spacedRepetition || {}), ...(local.spacedRepetition || {}) };
+
+  // 有効なクイズIDが指定されている場合は孤立ID（旧問題）を除外
+  let finalHistory = mergedHistory;
+  let finalBookmarks = mergedBookmarks;
+  let finalSR = mergedSR;
+
+  if (validQuizIds && validQuizIds.length > 0) {
+    const validSet = new Set(validQuizIds);
+
+    finalHistory = {};
+    for (const [id, rec] of Object.entries(mergedHistory)) {
+      if (validSet.has(id)) finalHistory[id] = rec;
+    }
+
+    finalBookmarks = mergedBookmarks.filter(id => validSet.has(id));
+
+    finalSR = {};
+    for (const [id, item] of Object.entries(mergedSR)) {
+      if (validSet.has(id)) finalSR[id] = item;
+    }
+  }
   // 日別解答ログのマージ
   const mergedDailyLogs: Record<string, any[]> = {};
   const allLogDates = new Set([
@@ -245,8 +270,8 @@ export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): Use
     .slice(0, 50);
 
   return {
-    history: mergedHistory,
-    bookmarks: mergedBookmarks,
+    history: finalHistory,
+    bookmarks: finalBookmarks,
     streak: {
       current: streakCurrent,
       lastActiveDate: lastActiveDate || new Date().toISOString().split('T')[0],
@@ -257,7 +282,7 @@ export const mergeUserProgress = (local: UserProgress, cloud: UserProgress): Use
     notificationEnabled: local.notificationEnabled ?? cloud.notificationEnabled ?? false,
     activeSession: mergedActiveSession,
     sessionUpdatedAt: mergedSessionUpdatedAt,
-    spacedRepetition: mergedSR,
+    spacedRepetition: finalSR,
     dailyLogs: mergedDailyLogs,
     mockHistory: mergedMockHistory,
     shuffleOptions: local.shuffleOptions ?? cloud.shuffleOptions ?? true,
@@ -281,7 +306,7 @@ export const saveProgressToCloud = async (userId: string, progress: UserProgress
   await setDoc(userDocRef, {
     progress: sanitized,
     updatedAt: serverTimestamp(),
-  }, { merge: true });
+  });
 };
 
 /**
