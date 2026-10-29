@@ -299,7 +299,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 実力テスト（本番模試）
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                40分制限時間付きの本番形式模試。政治・経済・暮らしバランス出題で実力を判定します。
+                40分制限時間付きの本番形式模試。政治・経済・暮らし・社会環境バランス出題で実力を判定します。
               </p>
             </div>
             <div className="mt-6 flex items-center justify-between text-xs font-bold text-violet-600 dark:text-violet-400">

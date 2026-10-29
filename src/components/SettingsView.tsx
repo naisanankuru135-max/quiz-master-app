@@ -750,7 +750,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </span>
         </div>
         <p className="text-[11px]">
-          総問題数: {totalQuizzesCount}問 ｜ 政治・経済・暮らし 全{ALL_FACTS.length}論点 100% 完全網羅
+          総問題数: {totalQuizzesCount}問 ｜ 政治・経済・暮らし・社会環境 全{ALL_FACTS.length}論点 100% 完全網羅
         </p>
         <p className="text-[10px] opacity-75">
           Google Cloud (Firebase Firestore) 自動同期 ＆ PWA 対応

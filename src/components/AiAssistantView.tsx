@@ -137,7 +137,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              APIキーやログインは一切不要。ニュース検定（政治・経済・暮らし 全{allQuizzes.length}問）の疑問を地球に優しいAIで解決します
+              APIキーやログインは一切不要。ニュース検定（政治・経済・暮らし・社会環境 全{allQuizzes.length}問）の疑問を地球に優しいAIで解決します
             </p>
           </div>
         </div>

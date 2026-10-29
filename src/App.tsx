@@ -415,11 +415,12 @@ export const App: React.FC = () => {
       setMockTimer(null);
       setMockElapsedSeconds(0);
     } else if (mode === 'mockTest') {
-      // 実力テスト：政治10問＋経済20問＋暮らし10問の計40問バランス選出・40分タイマー
+      // 実力テスト：政治10問＋経済10問＋暮らし10問＋社会環境10問の計40問バランス選出・40分タイマー
       const pol = ALL_QUIZZES.filter(q => q.category === '政治').sort(() => 0.5 - Math.random()).slice(0, 10);
-      const eco = ALL_QUIZZES.filter(q => q.category === '経済').sort(() => 0.5 - Math.random()).slice(0, 20);
+      const eco = ALL_QUIZZES.filter(q => q.category === '経済').sort(() => 0.5 - Math.random()).slice(0, 10);
       const liv = ALL_QUIZZES.filter(q => q.category === '暮らし').sort(() => 0.5 - Math.random()).slice(0, 10);
-      targetQuizzes = [...pol, ...eco, ...liv].sort(() => 0.5 - Math.random());
+      const soc = ALL_QUIZZES.filter(q => q.category === '社会環境').sort(() => 0.5 - Math.random()).slice(0, 10);
+      targetQuizzes = [...pol, ...eco, ...liv, ...soc].sort(() => 0.5 - Math.random());
       setMockTimer(40 * 60); // 40分
       setMockElapsedSeconds(0);
     } else if (mode === 'category' && category) {
