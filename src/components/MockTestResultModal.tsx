@@ -163,7 +163,7 @@ export const MockTestResultModal: React.FC<MockTestResultModalProps> = ({
           {/* 結果シェアボタン */}
           <button
             onClick={() => {
-              const text = `超難問クイズマスター（政治・経済・暮らし・社会環境）の実力テストで【${correctCount}/${total}問 (${accuracy}%)】を獲得！${isPassed ? '合格水準クリア🎯' : 'リベンジ挑戦中🔥'}`;
+              const text = `超難問クイズマスター（政治・経済・暮らし・社会環境・国際）の実力テストで【${correctCount}/${total}問 (${accuracy}%)】を獲得！${isPassed ? '合格水準クリア🎯' : 'リベンジ挑戦中🔥'}`;
               const url = 'https://naisanankuru135-max.github.io/quiz-master-app/';
               const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}&hashtags=ニュース検定,政治経済,クイズマスター`;
               window.open(shareUrl, '_blank', 'noopener,noreferrer');
