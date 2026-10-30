@@ -1,5 +1,5 @@
 // Service Worker for Offline Quiz Master PWA
-const CACHE_NAME = 'quiz-master-cache-v4';
+const CACHE_NAME = 'quiz-master-cache-v5';
 
 const STATIC_ASSETS = [
   './',
@@ -7,7 +7,16 @@ const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icon.svg',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './assets/art/bg_diet.jpg',
+  './assets/art/boss_abe.jpg',
+  './assets/art/boss_aso.jpg',
+  './assets/art/boss_takaichi.jpg',
+  './assets/art/boss_trump.jpg',
+  './assets/art/boss_putin.jpg',
+  './assets/art/boss_kishida.jpg',
+  './assets/art/boss_koike.jpg',
+  './assets/art/boss_kishi.jpg'
 ];
 
 self.addEventListener('install', (event) => {
