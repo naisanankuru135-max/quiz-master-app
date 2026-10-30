@@ -1,4 +1,4 @@
-import{r as d,j as e,a as o,E as i,p as v,B as y,n as q,_ as f,$ as A,W as I,a0 as E,Z as S,a1 as P}from"./vendor-react-CUoB6zdV.js";import{h as T,o as u}from"./index-C257Mnux.js";import"./vendor-DhuH0n_x.js";import"./vendor-firebase-cSJ2hOgo.js";import"./vendor-confetti-oQXWb4Lk.js";const U=({allQuizzes:j,initialQuizContext:t,onClearQuizContext:x})=>{const[s,m]=d.useState(t||null),[n,c]=d.useState(""),[b,h]=d.useState("");d.useEffect(()=>{t&&m(t)},[t]);const p=a=>{h(a),setTimeout(()=>h(""),5e3)},g=a=>{const r=(a||n).trim();if(!r)return;const l=`【ニュース検定・時事問題の学習相談】
+import{r as d,j as e,a as o,E as i,p as v,B as y,n as q,_ as f,$ as A,W as I,a0 as E,Z as S,a1 as P}from"./vendor-react-oYlG2rOd.js";import{h as T,o as u}from"./index-CS7EIPDj.js";import"./vendor-DhuH0n_x.js";import"./vendor-firebase-cSJ2hOgo.js";import"./vendor-confetti-oQXWb4Lk.js";const U=({allQuizzes:j,initialQuizContext:t,onClearQuizContext:x})=>{const[s,m]=d.useState(t||null),[n,c]=d.useState(""),[b,h]=d.useState("");d.useEffect(()=>{t&&m(t)},[t]);const p=a=>{h(a),setTimeout(()=>h(""),5e3)},g=a=>{const r=(a||n).trim();if(!r)return;const l=`【ニュース検定・時事問題の学習相談】
 質問内容: ${r}
 
 【お願い】
